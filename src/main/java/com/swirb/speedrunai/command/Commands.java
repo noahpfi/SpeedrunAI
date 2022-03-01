@@ -1,6 +1,5 @@
 package com.swirb.speedrunai.command;
 
-import com.swirb.speedrunai.Debug;
 import com.swirb.speedrunai.Theta;
 import com.swirb.speedrunai.client.Client;
 import com.swirb.speedrunai.client.ClientHandler;
@@ -13,7 +12,6 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
-import org.bukkit.Color;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -147,13 +145,6 @@ public class Commands implements CommandExecutor {
                 }
                 else if (args[0].equalsIgnoreCase("t")) {
                     new Theta(((CraftPlayer) sender).getHandle());
-                }
-                else if (args[0].equalsIgnoreCase("visible")) {
-                    BlockPos p0 = new BlockPos(1297, 127, -1015);
-                    BlockPos p1 = new BlockPos(1298, 127, -1014);
-                    Debug.visualizeBlockPosition(((CraftPlayer) sender).getHandle().level, p0, Color.GREEN, 1.0F);
-                    Debug.visualizeBlockPosition(((CraftPlayer) sender).getHandle().level, p1, Color.RED, 1.0F);
-                    System.out.println(this.lineOfSight(((CraftPlayer) sender).getHandle().level, p0, p1));
                 }
             }
         }
