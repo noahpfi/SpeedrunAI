@@ -1,0 +1,39 @@
+package com.swirb.speedrunai.utils;
+
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.dimension.LevelStem;
+import org.bukkit.Bukkit;
+import org.bukkit.craftbukkit.v1_18_R1.CraftServer;
+
+public class ChatUtils {
+
+    public static final String[] ALPHABET = {"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"};
+    public static final String DASH = "=======================================================";
+    public static final String DASH_THIN = "---------------------------------------------------";
+
+    public static String trimTo16(String string) {
+        if (string.length() > 16) {
+            string = string.substring(0, 16);
+            for (Entity player : ((CraftServer) Bukkit.getServer()).getHandle().players) {
+                if (string.equalsIgnoreCase(player.getName().getString())) {
+                    string = ClientProfile.createRandomName();
+                }
+            }
+        }
+        return string;
+    }
+
+    public static String getDimension(Level level) {
+        if (level.getTypeKey() == LevelStem.OVERWORLD) {
+            return "OVERWORLD";
+        }
+        else if (level.getTypeKey() == LevelStem.NETHER) {
+            return "NETHER";
+        }
+        else if (level.getTypeKey() == LevelStem.END) {
+            return "END";
+        }
+        return "UNKNOWN DIMENSION";
+    }
+}

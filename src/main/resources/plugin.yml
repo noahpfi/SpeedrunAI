@@ -1,0 +1,13 @@
+name: SpeedrunAI
+version: '${project.version}'
+main: com.swirb.speedrunai.main.SpeedrunAI
+api-version: 1.18
+authors: [ Swirb ]
+description: bot that are smart
+website: https://www.youtube.com/channel/UCqdWbVRctQBMrZQUjuvYjug
+
+commands:
+  bot:
+    description: makes bots
+  gamemode:
+    description: changes the gamemode

@@ -1,0 +1,265 @@
+package com.swirb.speedrunai.client;
+
+import com.swirb.speedrunai.Debug;
+import com.swirb.speedrunai.path.Node;
+import com.swirb.speedrunai.utils.MathUtils;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
+import org.bukkit.Color;
+import org.checkerframework.checker.units.qual.A;
+
+import java.util.*;
+
+public class SmrtThetaController {
+
+    private final Client client;
+    private boolean active;
+
+    private Node start;
+    private Node end;
+    private final Set<Node> open;
+    private final Set<Node> closed;
+
+    private List<BlockPos> currentTargetPos;
+    private int radius = 8;
+    private double hx = 1.0D;
+
+    public SmrtThetaController(Client client) {
+        this.client = client;
+        this.active = false;
+
+        this.start = new Node(this.client.level, this.client.blockPosition(), new Node(this.client.level, this.client.blockPosition()));
+        this.open = new HashSet<>(); //new PriorityQueue<>((o1, o2) -> o1.F() == o2.F() ? Double.compare(o1.H(), o2.H()) : Double.compare(o1.F(), o2.F()));
+        this.closed = new HashSet<>();
+
+        this.currentTargetPos = new ArrayList<>();
+
+        this.open.add(this.start);
+    }
+
+    public void tick() {
+        Entity entity = this.client.nearest(100, 100, 100, entity1 -> entity1 instanceof Player);
+
+        this.releaseAll();
+
+        if (!this.active || entity == null) {
+            return;
+        }
+
+        this.start.setBlockPos(this.client.blockPosition());
+        this.end = new Node(this.client.level, entity.blockPosition());
+
+        if (!this.currentTargetPos.isEmpty()) {
+            this.open.clear();
+            this.open.add(this.start);
+            this.closed.clear();
+            this.client.input.W = true;
+            this.client.lookAt(this.currentTargetPos.get(this.currentTargetPos.size() - 1));
+            Debug.visualizeBlockPosition(this.client.level, this.currentTargetPos.get(this.currentTargetPos.size() - 1), Color.RED, 2.0F);
+        }
+
+        if (this.calculate()) {
+            this.active = false;
+            this.releaseAll();
+            this.open.clear();
+            this.open.add(this.start);
+            this.closed.clear();
+            this.currentTargetPos.clear();
+        }
+    }
+
+    public boolean calculate() {
+        long stamp1 = System.currentTimeMillis();
+        while ((System.currentTimeMillis() - stamp1) <= 30 && !this.open.isEmpty()) {
+            Node c = this.low();
+
+            if (!this.lineOfSight(c.level(), c.from().position(), c.position())) {
+                c.setFrom(this.bestNearby(c));
+                //c.setG();
+            }
+
+            if (c.equals(this.end)) {
+                this.end.setFrom(c.from());
+                System.out.println("path found!");
+                return true;
+            }
+
+            this.open.remove(c);
+            this.closed.add(c);
+            System.out.println("current F: " + c.F());
+            System.out.println("current open size: " + this.open.size());
+            Debug.visualizeBlockPosition(c.level(), c.position(), Color.WHITE, 1.0F);
+
+            if (!c.visible()) {
+                this.currentTargetPos.add(this.nextAdjVisible(c).position());
+                return false;
+            }
+
+            for (Node successor : this.successors(c, this.radius)) {
+                Node inOpen = this.nodeIn(successor, this.open);
+                Node inClosed = this.nodeIn(successor, this.closed);
+                successor.setG(c.from().G() + this.stepCost(c.from(), successor));
+                successor.setH(this.h(successor, this.end));
+                successor.setFrom(c.from());
+                if (inOpen != null && successor.G() < inOpen.G()) {
+                    inOpen.setG(successor.G());
+                    inOpen.setFrom(c.from());
+                }
+                if (inClosed != null && successor.G() < inClosed.G()) {
+                    this.closed.remove(inClosed);
+                }
+                if (inOpen == null && inClosed == null) {
+                    this.open.add(successor);
+                }
+            }
+        }
+        System.out.println("path failed");
+        return false;
+    }
+
+    public Set<Node> successors(Node from, int view) {
+        Set<Node> positions = new HashSet<>();
+        BlockPos start = new BlockPos(from.position().getX() - 1.0D, from.position().getY() - 1.0D, from.position().getZ() - 1.0D);
+        for (int i = start.getX(); i < (start.getX() + 3); i++) {
+            for (int j = start.getY(); j < (start.getY() + 3); j++) {
+                for (int k = start.getZ(); k < (start.getZ() + 3); k++) {
+                    BlockPos position = new BlockPos(i, j, k);
+                    Node node = new Node(from.level(), position, from);
+                    if ((MathUtils.distanceSquared(this.client.eyeBlockPosition(), position, false, false) >= view * view && this.client.canSee(position)) || !this.client.canSee(position) || !this.isPassable(position)) {
+                        node.setVisible(false);
+                    }
+                    if (!node.equals(from)) {
+                        positions.add(node);
+                    }
+                }
+            }
+        }
+        return positions;
+    }
+
+    public Node bestNearby(Node from) {
+        double G = Double.MAX_VALUE;
+        Node best = null;
+        for (Node successor : this.successors(from, this.radius)) {
+            if (from.G() + this.stepCost(from, successor) < G) {
+                G = from.G() + this.stepCost(from, successor);
+                best = successor;
+            }
+        }
+        return best;
+    }
+
+    public Node nextAdjVisible(Node node) {
+        for (Direction direction : Direction.values()) {
+            if (this.client.canSee(node.position().relative(direction))) {
+                return new Node(node.level(), node.position().relative(direction));
+            }
+        }
+        return node;
+    }
+
+    public Node nextVisible(Node node) {
+        Set<BlockPos> positions = new HashSet<>();
+        positions.add(node.position().offset(1, 0, 1));
+        positions.add(node.position().offset(1, 0, -1));
+        positions.add(node.position().offset(-1, 0, 1));
+        positions.add(node.position().offset(-1, 0, -1));
+        for (BlockPos blockPos : positions) {
+            if (this.client.canSee(blockPos)) {
+                return new Node(this.client.level, blockPos, node.from());
+            }
+        }
+        return null;
+    }
+
+    public Node lowVisible(Node from) {
+        double F = Double.MAX_VALUE;
+        Node low = null;
+        for (Direction direction : Direction.values()) {
+            Node n = new Node(from.level(), from.position().relative(direction));
+            if (this.client.canSee(from.position().relative(direction)) && from.G() + this.stepCost(from, n) + this.h(n, this.end) < F) {
+                low = n;
+                F = from.G() + this.stepCost(from, n) + this.h(n, this.end);
+            }
+        }
+        return low;
+    }
+
+    public double h(Node from, Node to) {
+        return this.hx * MathUtils.distanceSquared(from.position(), to.position(), true, false);
+    }
+
+    public double stepCost(Node from, Node to) {
+        double cost = 0.0D;
+        if (!to.walkable()) {
+            cost =+ 10.0D;
+        }
+        /* + other variables */
+        return MathUtils.distanceSquared(from.position(), to.position(), true, false) + cost;
+    }
+
+    private Node low() {
+        double F = Double.MAX_VALUE;
+        Node low = null;
+        for (Node node : this.open) {
+            if (node.F() < F) {
+                F = node.F();
+                low = node;
+            }
+            else if (node.F() == F && low != null) {
+                if (node.H() < low.H()) {
+                    low = node;
+                }
+            }
+        }
+        return low;
+    }
+
+    public Node nodeIn(Node node, Collection<Node> nodes) {
+        for (Node node1 : nodes) {
+            if (node1.equals(node)) {
+                return node1;
+            }
+        }
+        return null;
+    }
+
+    public boolean lineOfSight(Level level, BlockPos from, BlockPos to) {
+        if (from == null || to == null) {
+            return false;
+        }
+        Vec3 vec3 = Vec3.atCenterOf(from);
+        Vec3 vec31 = Vec3.atCenterOf(to);
+        return level.clip(new ClipContext(vec3, vec31, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, null)).getBlockPos().equals(to);
+    }
+
+    private boolean isPassable(BlockPos position) {
+        return this.client.level.getBlockState(position).getCollisionShape(this.client.level, position).isEmpty();
+    }
+
+    private void releaseAll() {
+        this.client.input.W = false;
+        this.client.input.S = false;
+        this.client.input.A = false;
+        this.client.input.D = false;
+        this.client.input.SPRINT = false;
+        this.client.input.SHIFT = false;
+        this.client.input.SPACE = false;
+        this.client.input.LEFT_CLICK = false;
+        this.client.input.RIGHT_CLICK = false;
+    }
+
+    public void startup() {
+        this.active = true;
+    }
+
+    public void shutDown() {
+        this.releaseAll();
+        this.active = false;
+    }
+}
