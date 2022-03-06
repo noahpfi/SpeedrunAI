@@ -117,6 +117,7 @@ public class Client extends ServerPlayer {
         return true;
     }
 
+    // need that because setRot is protected
     public void setRotation(float yaw, float pitch) {
         this.setRot(yaw, pitch);
     }
@@ -445,9 +446,8 @@ public class Client extends ServerPlayer {
         }
     }
 
-    //TODO can't be triggered sync
     public void chat(String text) {
-        this.connection.chat(text, true);
+        this.connection.chat(text, false);
     }
 
     public void updateDifficulty(int difficulty) {
