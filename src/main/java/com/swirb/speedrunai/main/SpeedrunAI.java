@@ -25,7 +25,6 @@ public class SpeedrunAI extends JavaPlugin {
         INSTANCE = this;
         clientHandler = new ClientHandler();
         registerCommands();
-        ((CraftServer) this.getServer()).getServer().setUsesAuthentication(true);  //TODO: Move to later in lifecycle
     }
 
     @Override
