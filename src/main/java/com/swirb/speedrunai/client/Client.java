@@ -54,6 +54,7 @@ public class Client extends ServerPlayer {
 
     private final BukkitScheduler scheduler;
     private final SmrtThetaController controller;
+    public final String name;
     public final MouseUtils mouseUtils;
     public final InventoryUtils inventoryUtils;
     public final Input input;
@@ -71,6 +72,7 @@ public class Client extends ServerPlayer {
 
     public Client(Level level, String name, String[] skin) {
         super(level.getCraftServer().getServer(), level.getWorld().getHandle(), new ClientProfile(ClientProfile.validateName(name), skin));
+        this.name = name;
         this.scheduler = Bukkit.getScheduler();
         this.controller = new SmrtThetaController(this);
         this.mouseUtils = new MouseUtils(this);
@@ -83,15 +85,19 @@ public class Client extends ServerPlayer {
     }
 
     private void placeClient() {
-        SpeedrunAI.LOGGER.info(ChatUtils.DASH);
-        SpeedrunAI.LOGGER.info("Connecting {} (Robot) to the server...", this.getName().getString());
+        SpeedrunAI.getInstance().getLogger().info(ChatUtils.DASH);
+        SpeedrunAI.getInstance().getLogger().info("Connecting Bot " + name + "...");
         Connection connection = new ClientConnection(PacketFlow.SERVERBOUND, this);
-        SpeedrunAI.LOGGER.info("Done! Connected {} (Robot) to the server", this.getName().getString());
-        SpeedrunAI.LOGGER.info("Spawning {} (Robot)...", this.getName().getString());
+        SpeedrunAI.getInstance().getLogger().info("Successfully Connected Bot " + name + " to the server!");
+        SpeedrunAI.getInstance().getLogger().info("Spawning bot " + name + "...");
         this.server.getPlayerList().placeNewPlayer(connection, this);
-        SpeedrunAI.getClientHandler().add(this);
-        SpeedrunAI.LOGGER.info("Done! Spawned {} (Robot) at [{}] ({}, {}, {})", this.getName().getString(), ChatUtils.getDimension(this.level), Math.floor(this.getX()), Math.floor(this.getY()), Math.floor(this.getZ()));
-        SpeedrunAI.LOGGER.info(ChatUtils.DASH);
+        SpeedrunAI.getInstance().getClientHandler().add(this);
+        SpeedrunAI.getInstance().getLogger().info("Spawned bot " + name + " at "
+                + Math.floor(getX())
+                + ", " + Math.floor(getY())
+                + ", " + Math.floor(getZ())
+                + "!");
+        SpeedrunAI.getInstance().getLogger().info(ChatUtils.DASH);
     }
 
     public void tick() {
@@ -102,13 +108,14 @@ public class Client extends ServerPlayer {
 
     public void remove(RemovalReason removalReason) {
         super.remove(removalReason);
-        SpeedrunAI.LOGGER.info("[{}] removed", this.getName().getString());
-        if (removalReason == RemovalReason.KILLED) this.scheduler.runTaskLater(SpeedrunAI.getInstance(), () -> SpeedrunAI.getClientHandler().respawn(this), 20);
+        SpeedrunAI.getInstance().getLogger().info(name + "was removed due to " + removalReason.toString());
+        if (removalReason == RemovalReason.KILLED)
+            this.scheduler.runTaskLater(SpeedrunAI.getInstance(), () -> SpeedrunAI.getInstance().getClientHandler().respawn(this), 20);
     }
 
     public void die(DamageSource damageSource) {
         super.die(damageSource);
-        SpeedrunAI.LOGGER.info("[{}] died because of {}", this.getName().getString(), damageSource.msgId);
+        SpeedrunAI.getInstance().getLogger().info(name + " died due to " + damageSource.msgId);
     }
 
     public boolean isLocalPlayer() {
@@ -223,11 +230,15 @@ public class Client extends ServerPlayer {
                 super.attack(entity);
                 this.swing(InteractionHand.MAIN_HAND);
                 this.waitForRecharge = this.getCurrentItemAttackStrengthDelay();
-                SpeedrunAI.LOGGER.info("[{}] attacking {} with {}", this.getName().getString(), entity.hasCustomName() ? entity.getName().getString() : entity.getType().toString(), this.getItemInHand(InteractionHand.MAIN_HAND).getDisplayName().getString());
+                SpeedrunAI.getInstance().getLogger().info(name + " attacking "
+                        + entity.getName().getString()
+                        + " with " + this.getItemInHand(InteractionHand.MAIN_HAND).getDisplayName().getString());
             }
-            else SpeedrunAI.LOGGER.info("[{}] attack canceled, cannot reach / see {}", this.getName().getString(), entity.hasCustomName() ? entity.getName().getString() : entity.getType().toString());
+            else SpeedrunAI.getInstance().getLogger().info(name + " couldn't attack as it cannot reach / see "
+                    + entity.getName().getString());
         }
-        else SpeedrunAI.LOGGER.info("[{}] attack canceled, cannot attack {} when dead", this.getName().getString(), entity.hasCustomName() ? entity.getName().getString() : entity.getType().toString());
+        else SpeedrunAI.getInstance().getLogger().info(name  + " couldn't attack as "
+                + entity.getName().getString() + " is dead");
     }
 
     public boolean canSee(Entity entity) {
@@ -334,8 +345,7 @@ public class Client extends ServerPlayer {
         this.setShiftKeyDown(this.input.SHIFT);
 
         // steers boat
-        if (this.isPassenger() && this.getVehicle() instanceof Boat) {
-            Boat boat = (Boat) this.getVehicle();
+        if (this.isPassenger() && this.getVehicle() instanceof Boat boat) {
             try {
                 Field fieldW = boat.getClass().getDeclaredField("inputUp");
                 Field fieldA = boat.getClass().getDeclaredField("inputLeft");
@@ -358,7 +368,7 @@ public class Client extends ServerPlayer {
                 method.invoke(boat);
                 method.setAccessible(false);
             } catch (Exception ex) {
-                SpeedrunAI.LOGGER.warn("[{}] error moving boat", this.getName().getString());
+                SpeedrunAI.getInstance().getLogger().warning(name + " could not steer boat");
             }
         }
 
@@ -436,7 +446,7 @@ public class Client extends ServerPlayer {
                 this.getInventory().selected = slot;
                 this.resetLastActionTime();
             } else {
-                SpeedrunAI.LOGGER.warn("[{}] tried to set an invalid carried item", this.getName().getString());
+                SpeedrunAI.getInstance().getLogger().warning(name + " tried to set an invalid carried item");
             }
         }
     }

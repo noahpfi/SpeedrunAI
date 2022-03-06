@@ -26,16 +26,18 @@ public class LazyAStar extends Pathing {
             public void run() {
                 long stamp1 = System.currentTimeMillis();
                 while ((System.currentTimeMillis() - stamp1) <= 30) {
-                    SpeedrunAI.LOGGER.info("[{}] processing path... ({})", LazyAStar.this.client.getName(), LazyAStar.this.open.size());
+                    SpeedrunAI.getInstance().getLogger().info(client.getName() + "is processing path of length " + LazyAStar.this.open.size());
                     if (LazyAStar.this.open.isEmpty()) {
-                        SpeedrunAI.LOGGER.info("[{}] ran out of nodes ({}s)", LazyAStar.this.client.getName(), ((System.currentTimeMillis() - stamp) / 1000.0D));
+                        SpeedrunAI.getInstance().getLogger().info(client.getName()
+                                + " ran out of nodes in " + ((System.currentTimeMillis() - stamp) / 1000.0D));
                         this.cancel();
                         break;
                     }
                     Node current = LazyAStar.this.lowestF(LazyAStar.this.open);
                     Debug.visualizeBlockPosition(LazyAStar.this.client.level, current.position(), Color.GRAY, 2.0F);
                     if (current.equals(LazyAStar.this.end)) {
-                        SpeedrunAI.LOGGER.info("[{}] path found! ({}s)", LazyAStar.this.client.getName(), ((System.currentTimeMillis() - stamp) / 1000.0D));
+                        SpeedrunAI.getInstance().getLogger().info(client.getName()
+                                + " found a path in " + ((System.currentTimeMillis() - stamp) / 1000.0D) + "s !");
                         LazyAStar.this.end.setFrom(current.from());
                         LazyAStar.this.recreate(shortcuts);
                         this.cancel();
@@ -69,7 +71,8 @@ public class LazyAStar extends Pathing {
             public void run() {
                 long stamp1 = System.currentTimeMillis();
                 while ((System.currentTimeMillis() - stamp1) <= 30) {
-                    SpeedrunAI.LOGGER.info("[{}] recreating path... ({})", LazyAStar.this.client.getName(), path.length());
+                    SpeedrunAI.getInstance().getLogger().info(client.getName()
+                            + " is recreating a path of length " + path.length());
                     if (LazyAStar.this.recreationNode.from() != null) {
                         LazyAStar.this.recreationNode = LazyAStar.this.recreationNode.from();
                         path.add(0, LazyAStar.this.recreationNode);
@@ -89,10 +92,13 @@ public class LazyAStar extends Pathing {
                             }
                             int length = path.length();
                             path.cutOutNodes(cut);
-                            SpeedrunAI.LOGGER.info("[{}] applied shortcuts ({}|{})", LazyAStar.this.client.getName(), length, path.length());
+                            SpeedrunAI.getInstance().getLogger().info(client.getName()
+                                    + " applied shortcuts of length " + length
+                                    + " to a path of length " + path.length());
                         }
                         path.setFound(true);
-                        SpeedrunAI.LOGGER.info("[{}] path recreated! ({}s)", LazyAStar.this.client.getName(), ((System.currentTimeMillis() - stamp) / 1000D));
+                        SpeedrunAI.getInstance().getLogger().info(client.getName()
+                                + " recreated a path in " + ((System.currentTimeMillis() - stamp) / 1000.0D) + "s !");
                         System.out.println(path.nodes().size());
                         for (Node node : path.nodes()) {
                             Debug.visualizeBlockPosition(node.level(), node.position(), Color.RED, 5.0F);
