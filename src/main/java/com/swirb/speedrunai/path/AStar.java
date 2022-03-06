@@ -24,16 +24,19 @@ public class AStar extends Pathing {
             public void run() {
                 long stamp1 = System.currentTimeMillis();
                 while ((System.currentTimeMillis() - stamp1) <= 30) {
-                    SpeedrunAI.LOGGER.info("[{}] processing path... ({})", AStar.this.client.getName().getString(), AStar.this.open.size());
+                    SpeedrunAI.getInstance().getLogger().info(client.getName()
+                            + " is processing a path of length " + open.size());
                     if (AStar.this.open.isEmpty()) {
-                        SpeedrunAI.LOGGER.info("[{}] ran out of nodes ({}s)", AStar.this.client.getName().getString(), ((System.currentTimeMillis() - stamp) / 1000.0D));
+                        SpeedrunAI.getInstance().getLogger().info(client.getName()
+                                + " ran out of nodes in " + ((System.currentTimeMillis() - stamp) / 1000.0D) + "s !");
                         this.cancel();
                         break;
                     }
                     Node current = AStar.this.lowestF(AStar.this.open);
                     Debug.visualizeBlockPosition(AStar.this.client.level, current.position(), Color.GRAY, 2.0F);
                     if (current.equals(AStar.this.end)) {
-                        SpeedrunAI.LOGGER.info("[{}] path found! ({}s)", AStar.this.client.getName().getString(), ((System.currentTimeMillis() - stamp) / 1000.0D));
+                        SpeedrunAI.getInstance().getLogger().info(client.getName()
+                                + " found a path in " + ((System.currentTimeMillis() - stamp) / 1000.0D) + "s !");
                         AStar.this.end.setFrom(current.from());
                         AStar.this.recreate(shortcuts);
                         this.cancel();
@@ -67,7 +70,8 @@ public class AStar extends Pathing {
             public void run() {
                 long stamp1 = System.currentTimeMillis();
                 while ((System.currentTimeMillis() - stamp1) <= 30) {
-                    SpeedrunAI.LOGGER.info("[{}] recreating path... ({})", AStar.this.client.getName().getString(), path.length());
+                    SpeedrunAI.getInstance().getLogger().info(client.getName()
+                            + " recreated a path in " + ((System.currentTimeMillis() - stamp) / 1000.0D) + "s !");
                     if (AStar.this.recreationNode.from() != null) {
                         AStar.this.recreationNode = AStar.this.recreationNode.from();
                         path.add(0, AStar.this.recreationNode);
@@ -87,10 +91,13 @@ public class AStar extends Pathing {
                             }
                             int length = path.length();
                             path.cutOutNodes(cut);
-                            SpeedrunAI.LOGGER.info("[{}] applied shortcuts ({}|{})", AStar.this.client.getName().getString(), length, path.length());
+                            SpeedrunAI.getInstance().getLogger().info(client.getName()
+                                    + " applied shortcuts of length " + length
+                                    + " to a path of length " + path.length());
                         }
                         path.setFound(true);
-                        SpeedrunAI.LOGGER.info("[{}] path recreated! ({}s)", AStar.this.client.getName().getString(), ((System.currentTimeMillis() - stamp) / 1000D));
+                        SpeedrunAI.getInstance().getLogger().info(client.getName()
+                                + " recreated a path in " + ((System.currentTimeMillis() - stamp) / 1000.0D) + "s !");
                         System.out.println(path.nodes().size());
                         for (Node node : path.nodes()) {
                             Debug.visualizeBlockPosition(node.level(), node.position(), Color.RED, 5.0F);

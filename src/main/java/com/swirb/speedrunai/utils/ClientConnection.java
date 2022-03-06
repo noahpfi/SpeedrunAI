@@ -20,10 +20,10 @@ public class ClientConnection extends Connection {
 
     public ClientConnection(PacketFlow packetFlow, Client client) {
         super(packetFlow);
+        this.client = client;
         this.channel = new LocalServerChannel();
         this.address = ConnectionUtils.randomSocketAddress();
-        SpeedrunAI.LOGGER.info("Using address [{}] (connected: {}; channel: {})", this.address.toString(), this.channel != null && this.channel.isOpen(), this.channel);
-        this.client = client;
+        SpeedrunAI.getInstance().getLogger().info("Connected a client using address " + address + " with channel " + channel);
     }
 
     public boolean isConnected() {
@@ -39,8 +39,8 @@ public class ClientConnection extends Connection {
             this.client.controller().shutDown();
             this.client.mouseUtils.stopDestroyingNoMessage();
             this.client.shutDown();
-            SpeedrunAI.getClientHandler().remove(this.client);
-            SpeedrunAI.LOGGER.info("[{}] shut down", this.client.getName().getString());
+            SpeedrunAI.getInstance().getClientHandler().remove(this.client);
+            SpeedrunAI.getInstance().getLogger().info(this.client.getName().getString() + " shut down");
         }
     }
 }

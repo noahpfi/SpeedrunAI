@@ -1,66 +1,52 @@
 package com.swirb.speedrunai.client;
 
+import com.swirb.speedrunai.main.SpeedrunAI;
 import com.swirb.speedrunai.utils.ClientProfile;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.bukkit.craftbukkit.v1_18_R1.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 
-import java.util.List;
-import java.util.Set;
+import java.util.Collection;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 
 public class ClientHandler {
 
-    private final Set<Client> clients;
-    private final Logger LOGGER = LogManager.getLogger();
-
-    public ClientHandler() {
-        this.clients = ConcurrentHashMap.newKeySet();
-    }
+    private final Map<Integer, Client> idMap = new ConcurrentHashMap<>();
+    private final Map<String, Client> nameMap = new ConcurrentHashMap<>();
 
     public void add(Client client) {
-        this.clients.add(client);
+        idMap.put(client.getId(), client);
+        nameMap.put(client.name, client);
     }
 
     public void remove(Client client) {
-        this.clients.remove(client);
+        idMap.remove(client.getId());
+        nameMap.remove(client.name);
     }
 
     public void clear() {
-        if (!this.clients.isEmpty()) {
-            for (Client client : clients) {
+        if(!idMap.isEmpty()) {
+            for (Client client : idMap.values()) {
                 this.disconnect(client, "reload / server closed");
+                remove(client);
             }
-            this.clients.clear();
         }
     }
 
     public Client get(String name) {
-        for (Client client : this.clients) {
-            if (name.equalsIgnoreCase(client.getName().getString())) {
-                return client;
-            }
-        }
-        return null;
+        return nameMap.get(name);
     }
 
     public Client get(Player player) {
-        for (Client client : this.clients) {
-            if (client.getId() == ((CraftPlayer) player).getHandle().getId()) {
-                return client;
-            }
-        }
-        return null;
+        return idMap.get(player.getEntityId());
     }
 
-    public Set<Client> clients() {
-        return this.clients;
+    public Collection<Client> clients() {
+        return idMap.values();
     }
 
-    public List<String> names() {
-        return this.clients.stream().map(client -> client.getName().getString()).collect(Collectors.toList());
+    public Collection<String> names() {
+        return nameMap.keySet();
     }
 
     public void createClients(Player sender, String name, int amount) {
@@ -76,14 +62,14 @@ public class ClientHandler {
         amount = Math.max(amount, 1);
         for (int i = 0; i < amount; i++) {
             Client client = new Client(((CraftPlayer) sender).getHandle().level, name, skin);
-            this.clients.add(client);
+            add(client);
         }
         sender.sendMessage("took " + ((System.currentTimeMillis() - stamp) / 1000D) + "s");
     }
 
     public void respawn(Client client) {
         client.server.getPlayerList().respawn(client, false);
-        this.LOGGER.info("[{}] respawned", client.getName().getString());
+        SpeedrunAI.getInstance().getLogger().info(client.name + " respawned");
     }
 
     public void disconnect(Client client, String quitMessage) {

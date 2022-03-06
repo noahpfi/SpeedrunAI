@@ -25,16 +25,19 @@ public class ThetaStar extends Pathing {
             public void run() {
                 long stamp1 = System.currentTimeMillis();
                 while ((System.currentTimeMillis() - stamp1) <= 30) {
-                    SpeedrunAI.LOGGER.info("[{}] processing path... ({})", ThetaStar.this.client.getName().getString(), ThetaStar.this.open.size());
+                    SpeedrunAI.getInstance().getLogger().info(client.getName()
+                            + " is processing a path of length " + open.size());
                     if (ThetaStar.this.open.isEmpty()) {
-                        SpeedrunAI.LOGGER.info("[{}] ran out of nodes ({}s)", ThetaStar.this.client.getName().getString(), ((System.currentTimeMillis() - stamp) / 1000.0D));
+                        SpeedrunAI.getInstance().getLogger().info(client.getName()
+                                + " ran out of nodes in " + ((System.currentTimeMillis() - stamp) / 1000.0D) + "s !");
                         this.cancel();
                         break;
                     }
                     Node current = ThetaStar.this.lowestF(ThetaStar.this.open);
                     Debug.visualizeBlockPosition(ThetaStar.this.client.level, current.position(), Color.TEAL, 2.0F);
                     if (current.equals(ThetaStar.this.end)) {
-                        SpeedrunAI.LOGGER.info("[{}] path found! ({}s)", ThetaStar.this.client.getName().getString(), ((System.currentTimeMillis() - stamp) / 1000.0D));
+                        SpeedrunAI.getInstance().getLogger().info(client.getName()
+                                + " found a path in " + ((System.currentTimeMillis() - stamp) / 1000.0D) + "s !");
                         ThetaStar.this.end.setFrom(current.from());
                         ThetaStar.this.recreate(shortcuts);
                         this.cancel();
@@ -44,7 +47,8 @@ public class ThetaStar extends Pathing {
                     ThetaStar.this.closed.add(current);
                     for (Node adjacent : ThetaStar.this.nextTos(current)) {
                         if (adjacent.equals(ThetaStar.this.end)) {
-                            SpeedrunAI.LOGGER.info("[{}] path found! ({}s)", ThetaStar.this.client.getName().getString(), ((System.currentTimeMillis() - stamp) / 1000.0D));
+                            SpeedrunAI.getInstance().getLogger().info(client.getName()
+                                    + " found a path in " + ((System.currentTimeMillis() - stamp) / 1000.0D) + "s !");
                             ThetaStar.this.end.setFrom(current.from());
                             ThetaStar.this.recreate(shortcuts);
                             this.cancel();
@@ -91,7 +95,8 @@ public class ThetaStar extends Pathing {
             public void run() {
                 long stamp1 = System.currentTimeMillis();
                 while ((System.currentTimeMillis() - stamp1) <= 30) {
-                    SpeedrunAI.LOGGER.info("[{}] recreating path... ({})", ThetaStar.this.client.getName().getString(), path.length());
+                    SpeedrunAI.getInstance().getLogger().info(client.getName()
+                            + " is recreating a path of length " + path.length());
                     if (ThetaStar.this.recreationNode.from() != null) {
                         ThetaStar.this.recreationNode = ThetaStar.this.recreationNode.from();
                         path.add(0, ThetaStar.this.recreationNode);
@@ -99,7 +104,8 @@ public class ThetaStar extends Pathing {
                     else {
                         path.add(ThetaStar.this.end);
                         path.setFound(true);
-                        SpeedrunAI.LOGGER.info("[{}] path recreated! ({}s)", ThetaStar.this.client.getName().getString(), ((System.currentTimeMillis() - stamp) / 1000D));
+                        SpeedrunAI.getInstance().getLogger().info(client.getName()
+                                + " recreated a path in " + ((System.currentTimeMillis() - stamp) / 1000.0D) + "s !");
                         System.out.println(path.nodes().size());
                         final int[] i = {0};
                         new BukkitRunnable() {
