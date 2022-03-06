@@ -24,7 +24,7 @@ public class SpeedrunAI extends JavaPlugin {
     public void onEnable() {
         INSTANCE = this;
         clientHandler = new ClientHandler();
-        registerCommands();
+        this.registerCommands();
     }
 
     @Override
@@ -33,8 +33,8 @@ public class SpeedrunAI extends JavaPlugin {
     }
 
     private void registerCommands() {
-        getCommand("bot").setExecutor(new Commands(clientHandler));
-        getCommand("gamemode").setExecutor(new GameMode());
+        this.getCommand("bots").setExecutor(new Commands(clientHandler));
+        this.getCommand("gamemode").setExecutor(new GameMode());
     }
 
 }

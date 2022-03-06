@@ -7,7 +7,7 @@ description: bot that are smart
 website: https://www.youtube.com/channel/UCqdWbVRctQBMrZQUjuvYjug
 
 commands:
-  bot:
-    description: makes bots
+  bots:
+    description: client commands
   gamemode:
     description: changes the gamemode
