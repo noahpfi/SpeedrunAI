@@ -178,6 +178,7 @@ public class MathUtils {
         }
     }
 
+    //TODO it don't work
     public static float calculateShootingAngelHorizontal(Level level, Vec3 targetLoc, Vec3 fromLoc, Vec3 targetVel, Vec3 vec3) {
         double height = fromLoc.y;
         double height1 = targetLoc.y;
