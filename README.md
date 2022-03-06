@@ -1,0 +1,4 @@
+# SpeedrunAI
+bots bots bots
+NOWAY
+NO LEAKING THE FILES OR BAD LUCK FOREVR
