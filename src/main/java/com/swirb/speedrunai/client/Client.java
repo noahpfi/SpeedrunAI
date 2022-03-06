@@ -89,8 +89,9 @@ public class Client extends ServerPlayer {
         SpeedrunAI.getInstance().getLogger().info("Spawning " + name + "...");
         this.server.getPlayerList().placeNewPlayer(connection, this);
         SpeedrunAI.getInstance().getClientHandler().add(this);
-        SpeedrunAI.getInstance().getLogger().info("Spawned " + name +
-                " at " + Math.floor(getX())
+        SpeedrunAI.getInstance().getLogger().info(
+                "Spawned " + name
+                + " at " + Math.floor(getX())
                 + ", " + Math.floor(getY())
                 + ", " + Math.floor(getZ())
                 + "!");
@@ -230,11 +231,13 @@ public class Client extends ServerPlayer {
                         + " with " + this.getItemInHand(InteractionHand.MAIN_HAND).getDisplayName().getString()
                 );
             }
-            else this.LOGGER.info("couldn't attack as it cannot reach / see "
+            else this.LOGGER.info(
+                    "couldn't attack as it cannot reach / see "
                     + entity.getName().getString()
             );
         }
-        else this.LOGGER.info("couldn't attack as "
+        else this.LOGGER.info(
+                "couldn't attack as "
                 + entity.getName().getString() + " is dead"
         );
     }
