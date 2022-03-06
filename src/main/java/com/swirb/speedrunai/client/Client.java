@@ -104,8 +104,9 @@ public class Client extends ServerPlayer {
     public void remove(RemovalReason removalReason) {
         super.remove(removalReason);
         SpeedrunAI.getInstance().getLogger().info(name + "was removed due to " + removalReason.toString());
-        if (removalReason == RemovalReason.KILLED)
+        if (removalReason == RemovalReason.KILLED) {
             this.scheduler.runTaskLater(SpeedrunAI.getInstance(), () -> SpeedrunAI.getInstance().getClientHandler().respawn(this), 20);
+        }
     }
 
     public void die(DamageSource damageSource) {
