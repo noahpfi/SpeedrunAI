@@ -74,7 +74,7 @@
                         </goals>
                         <configuration>
                             <createDependencyReducedPom>false</createDependencyReducedPom>
-                            <outputFile>C:\Users\noah\stuff\stuffs\Server\serv\plugins\SpeedrunAI1.18.jar</outputFile>
+                            <outputFile>yourpath\SpeedrunAI1.18.jar</outputFile>
                         </configuration>
                     </execution>
                 </executions>
