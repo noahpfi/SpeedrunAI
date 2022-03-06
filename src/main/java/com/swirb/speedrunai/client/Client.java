@@ -94,7 +94,8 @@ public class Client extends ServerPlayer {
                 + " at " + Math.floor(getX())
                 + ", " + Math.floor(getY())
                 + ", " + Math.floor(getZ())
-                + "!");
+                + "!"
+        );
         SpeedrunAI.getInstance().getLogger().info(ChatUtils.DASH);
     }
 
