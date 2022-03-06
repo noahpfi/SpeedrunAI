@@ -34,7 +34,7 @@ public class SpeedrunAI extends JavaPlugin {
     }
 
     private void registerCommands() {
-        getCommand("speedrunai").setExecutor(new Commands(clientHandler));
+        getCommand("bot").setExecutor(new Commands(clientHandler));
         getCommand("gamemode").setExecutor(new GameMode());
     }
 
