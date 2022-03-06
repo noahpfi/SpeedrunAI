@@ -44,7 +44,6 @@ import org.bukkit.util.RayTraceResult;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -61,14 +60,10 @@ public class Client extends ServerPlayer {
     public final int taskID;
 
     private boolean attackBlocked = false;
+    public boolean handsOccupied = false;
     private int jumpRidingTicks = 0;
     private float jumpRidingScale = 0.0F;
-    public boolean handsOccupied = false;
-    public boolean breathe = false;
-    public boolean doneMlg = false;
-    public List<ItemStack> armorLastTick = new ArrayList<>();
     public float waitForRecharge = 0;
-    public float keepChargingWeapon = 0;
 
     public Client(Level level, String name, String[] skin) {
         super(level.getCraftServer().getServer(), level.getWorld().getHandle(), new ClientProfile(ClientProfile.validateName(name), skin));
@@ -424,7 +419,6 @@ public class Client extends ServerPlayer {
         this.mouseUtils.continueDestroying();
         this.handsOccupied = this.isPassenger() && (this.input.W || this.input.S || this.input.A || this.input.D);
         this.waitForRecharge--;
-        this.keepChargingWeapon--;
         this.input.sync();
     }
 

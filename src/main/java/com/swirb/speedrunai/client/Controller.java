@@ -18,6 +18,7 @@ import net.minecraft.world.phys.Vec3;
 import org.bukkit.Bukkit;
 import org.bukkit.scheduler.BukkitScheduler;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -28,7 +29,12 @@ public class Controller {
     private final BukkitScheduler scheduler;
     private boolean active;
     public boolean ignoreClients;
-
+    
+    public List<ItemStack> armorLastTick = new ArrayList<>();
+    public float keepChargingWeapon = 0;
+    public boolean breathe = false;
+    public boolean doneMlg = false;
+    
     private final String[] sentences = {"haha bad", "lamoo", "sryy", "whoops", "ez", "im too gud"};
 
     public Controller(Client client) {
@@ -44,6 +50,7 @@ public class Controller {
             return;
         }
         killEverything();
+        this.keepChargingWeapon--;
     }
 
     private void killEverything() {
@@ -51,11 +58,11 @@ public class Controller {
 
         // Death prevention
 
-        if (this.client.breathe && this.client.isInWater() && !this.client.level.getBlockState(new BlockPos(this.client.getX(), this.client.getEyeY(), this.client.getZ())).getMaterial().isLiquid()) {
+        if (this.breathe && this.client.isInWater() && !this.client.level.getBlockState(new BlockPos(this.client.getX(), this.client.getEyeY(), this.client.getZ())).getMaterial().isLiquid()) {
             //System.out.println("breathing");
             this.client.input.SPACE = true;
             if (this.client.getAirSupply() >= 250) {
-                this.client.breathe = false;
+                this.breathe = false;
             }
             return;
         }
@@ -63,7 +70,7 @@ public class Controller {
             //System.out.println("need air");
             this.runForward(true);
             this.client.look(this.client.getYRot(), -80.0F);
-            this.client.breathe = true;
+            this.breathe = true;
             return;
         }
         if (this.client.isInWall()) {
@@ -87,22 +94,22 @@ public class Controller {
             this.center();
             this.client.look(this.client.getYRot(), 90);
             this.client.input.RIGHT_CLICK = true;
-            this.client.doneMlg = true;
+            this.doneMlg = true;
             return;
         }
-        if (this.client.doneMlg) {
+        if (this.doneMlg) {
             //System.out.println("picking up mlg");
             this.client.inventoryUtils.swap(this.client.inventoryUtils.get(item -> item == Items.BUCKET), InventoryUtils.Section.ITEMS, 0);
             this.center();
             this.client.look(this.client.getYRot(), 90);
             this.clickRight();
-            this.client.doneMlg = false;
+            this.doneMlg = false;
             return;
         }
 
         // Goal (kill Players for testing)
 
-        if (!this.client.armorLastTick.equals(this.client.inventoryUtils.getAll(item -> item instanceof ArmorItem))) {
+        if (!this.armorLastTick.equals(this.client.inventoryUtils.getAll(item -> item instanceof ArmorItem))) {
             ItemStack itemStackFeet = this.client.inventoryUtils.get(InventoryUtils.Section.ARMOR, 0);
             ItemStack itemStackLegs = this.client.inventoryUtils.get(InventoryUtils.Section.ARMOR, 1);
             ItemStack itemStackChest = this.client.inventoryUtils.get(InventoryUtils.Section.ARMOR, 2);
@@ -127,7 +134,7 @@ public class Controller {
                 }
             }
         }
-        this.client.armorLastTick = this.client.inventoryUtils.getAll(item -> item instanceof ArmorItem);
+        this.armorLastTick = this.client.inventoryUtils.getAll(item -> item instanceof ArmorItem);
 
         Entity entity = this.client.nearest(100, 100, 100, entity1 -> entity1 instanceof Player && (!(entity1 instanceof Client) || !this.ignoreClients));
         if ((this.client.tickCount() - this.client.getLastHurtByMobTimestamp()) < 100 && this.client.getLastHurtByMob() != null && this.client.getLastHurtByMob().getHealth() > 0 && (!(this.client.getLastHurtByMob() instanceof Client) || !this.ignoreClients)) {
@@ -206,8 +213,8 @@ public class Controller {
                         }
                         this.client.input.RIGHT_CLICK = true;
                         this.runForward(false);
-                        if (this.client.keepChargingWeapon <= 0) {
-                            this.client.keepChargingWeapon = (shootingWeapon.getItem() instanceof BowItem || shootingWeapon.getItem() instanceof TridentItem) ? 22 : shootingWeapon.getItem().getUseDuration(shootingWeapon);
+                        if (this.keepChargingWeapon <= 0) {
+                            this.keepChargingWeapon = (shootingWeapon.getItem() instanceof BowItem || shootingWeapon.getItem() instanceof TridentItem) ? 22 : shootingWeapon.getItem().getUseDuration(shootingWeapon);
                             Vec3 velocity = MathUtils.calculateArrowVelocity(this.client);
                             float angle = MathUtils.calculateShootingAngle(velocity, this.client.distanceTo(new BlockPos(entity.position()), true, true), this.client.getY() - entity.getY());
                             float angle1 = MathUtils.calculateShootingAngelHorizontal(this.client.level, entity.getEyePosition(), this.client.getEyePosition(), entity.getDeltaMovement(), velocity);
