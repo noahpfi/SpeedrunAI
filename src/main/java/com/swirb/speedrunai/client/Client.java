@@ -245,9 +245,7 @@ public class Client extends ServerPlayer {
         if (blockPos == null) {
             return false;
         }
-        Vec3 vec3 = new Vec3(this.getX(), this.getEyeY(), this.getZ());
-        Vec3 vec31 = new Vec3(blockPos.getX() + 0.5D, blockPos.getY() + 0.5D, blockPos.getZ() + 0.5D);
-        return this.level.clip(new ClipContext(vec3, vec31, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, null)).getBlockPos().equals(blockPos);
+        return this.canSee(blockPos.getX() + 0.5D, blockPos.getY() + 0.5D, blockPos.getZ() + 0.5D);
     }
 
     public boolean canSee(double x, double y, double z) {
@@ -261,7 +259,7 @@ public class Client extends ServerPlayer {
     }
 
     public boolean inReach(BlockPos blockPos) {
-        return this.distanceTo(blockPos, false, false) <= (this.gameMode.isCreative() ? 49 : 36);
+        return this.inReach(blockPos.getX() + 0.5D, blockPos.getY() + 0.5D, blockPos.getZ() + 0.5D);
     }
 
     public boolean inReach(double x, double y, double z) {
@@ -404,7 +402,7 @@ public class Client extends ServerPlayer {
         }
         else {
             if (this.input.LEFT_CLICK) {
-                RayTraceResult r = this.rayTrace(-1);
+                RayTraceResult r = this.rayTraceBukkit(-1);
                 if (r != null && r.getHitEntity() != null && r.getHitEntity() instanceof LivingEntity && !this.handsOccupied) {
                     this.mouseUtils.stopDestroyingNoMessage();
                     this.attack(((CraftEntity) r.getHitEntity()).getHandle());
@@ -497,15 +495,15 @@ public class Client extends ServerPlayer {
         return positions;
     }
 
-    public double distanceTo(BlockPos position, boolean root, boolean ignoreY) {
-        return MathUtils.distanceSquared(new BlockPos(this.position()), position, root, ignoreY);
+    public double distanceTo(BlockPos pos, boolean root, boolean ignoreY) {
+        return this.distanceTo(pos.getX() + 0.5D, pos.getY() + 0.5D, pos.getZ() + 0.5D, root, ignoreY);
     }
 
     public double distanceTo(double x, double y, double z, boolean root, boolean ignoreY) {
-        return MathUtils.distanceSquared(this.getX(), this.getEyeY(), this.getZ(), x, y, z, root, ignoreY);
+        return MathUtils.distanceSquared(this.getX(), this.getY(), this.getZ(), x, y, z, root, ignoreY);
     }
 
-    public RayTraceResult rayTrace(double distance) {
+    public RayTraceResult rayTraceBukkit(double distance) {
         double d0 = this.getX();
         double d1 = this.getEyeY();
         double d2 = this.getZ();
@@ -514,7 +512,7 @@ public class Client extends ServerPlayer {
         return this.getBukkitEntity().getWorld().rayTrace(new Location(this.level.getWorld(), d0, d1, d2), this.getBukkitEntity().getLocation().getDirection(), d3, fcm, false, 0.1D, entity -> entity.getUniqueId() != this.getBukkitEntity().getUniqueId() && !((CraftEntity) entity).getHandle().isSpectator() && !entity.isDead());
     }
 
-    public BlockHitResult rayTrace2(double distance) {
+    public BlockHitResult rayTrace(double distance) {
         float f1 = this.getXRot();
         float f2 = this.getYRot();
         Vec3 vec3 = new Vec3(this.getX(), this.getEyeY(), this.getZ());

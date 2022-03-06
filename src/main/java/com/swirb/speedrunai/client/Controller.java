@@ -276,7 +276,7 @@ public class Controller {
                     this.client.input.SHIFT = true;
                     this.centerBridge(entity);
                     this.client.look(this.direction(entity), 75.0F);
-                    if (this.client.rayTrace(-1) == null || this.client.rayTrace(-1).getHitBlock() == null) {
+                    if (this.client.rayTraceBukkit(-1) == null || this.client.rayTraceBukkit(-1).getHitBlock() == null) {
                         this.client.input.D = false;
                         this.client.input.S = true;
                     }

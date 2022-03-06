@@ -39,7 +39,7 @@ public class MouseUtils {
     }
 
     public void startDestroying() {
-        RayTraceResult r = this.client.rayTrace(-1);
+        RayTraceResult r = this.client.rayTraceBukkit(-1);
         if (r == null) {
             this.stopDestroying("block null");
             return;
@@ -76,7 +76,7 @@ public class MouseUtils {
             this.stopDestroying("air / liquid");
             return;
         }
-        RayTraceResult r = this.client.rayTrace(-1);
+        RayTraceResult r = this.client.rayTraceBukkit(-1);
         if (r == null || r.getHitBlock() == null) {
             this.stopDestroying("block null");
             return;
@@ -142,10 +142,10 @@ public class MouseUtils {
         } else if(this.isDestroying()) {
             SpeedrunAI.getInstance().getLogger().info(client.name + " can't right click because its destroying a block");
         } else for(InteractionHand hand : InteractionHand.values()) {
-            BlockHitResult b = this.client.rayTrace2(-1);
+            BlockHitResult b = this.client.rayTrace(-1);
             ItemStack itemStack = this.client.getItemInHand(hand);
             if (itemStack != null) {
-                RayTraceResult r = this.client.rayTrace(-1);
+                RayTraceResult r = this.client.rayTraceBukkit(-1);
                 if (r != null && r.getHitEntity() != null) {
                     Entity entity = ((CraftEntity) r.getHitEntity()).getHandle();
                     InteractionResult result = null;
