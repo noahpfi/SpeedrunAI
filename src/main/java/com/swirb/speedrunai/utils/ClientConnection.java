@@ -40,7 +40,7 @@ public class ClientConnection extends Connection {
             this.client.mouseUtils.stopDestroyingNoMessage();
             this.client.shutDown();
             SpeedrunAI.getInstance().getClientHandler().remove(this.client);
-            SpeedrunAI.getInstance().getLogger().info(this.client.getName().getString() + " shut down");
+            this.client.logger().info("shut down");
         }
     }
 }

@@ -51,6 +51,7 @@ import java.util.function.Predicate;
 
 public class Client extends ServerPlayer {
 
+    private final Logger LOGGER;
     private final BukkitScheduler scheduler;
     private final SmrtThetaController controller;
     public final String name;
@@ -68,6 +69,7 @@ public class Client extends ServerPlayer {
     public Client(Level level, String name, String[] skin) {
         super(level.getCraftServer().getServer(), level.getWorld().getHandle(), new ClientProfile(ClientProfile.validateName(name), skin));
         this.name = name;
+        this.LOGGER = new Logger(this.name);
         this.scheduler = Bukkit.getScheduler();
         this.controller = new SmrtThetaController(this);
         this.mouseUtils = new MouseUtils(this);
@@ -81,14 +83,14 @@ public class Client extends ServerPlayer {
 
     private void placeClient() {
         SpeedrunAI.getInstance().getLogger().info(ChatUtils.DASH);
-        SpeedrunAI.getInstance().getLogger().info("Connecting Bot " + name + "...");
+        SpeedrunAI.getInstance().getLogger().info("Connecting " + name + "...");
         Connection connection = new ClientConnection(PacketFlow.SERVERBOUND, this);
-        SpeedrunAI.getInstance().getLogger().info("Successfully Connected Bot " + name + " to the server!");
-        SpeedrunAI.getInstance().getLogger().info("Spawning bot " + name + "...");
+        SpeedrunAI.getInstance().getLogger().info("Successfully connected " + name + " to the server!");
+        SpeedrunAI.getInstance().getLogger().info("Spawning " + name + "...");
         this.server.getPlayerList().placeNewPlayer(connection, this);
         SpeedrunAI.getInstance().getClientHandler().add(this);
-        SpeedrunAI.getInstance().getLogger().info("Spawned bot " + name + " at "
-                + Math.floor(getX())
+        SpeedrunAI.getInstance().getLogger().info("Spawned " + name +
+                " at " + Math.floor(getX())
                 + ", " + Math.floor(getY())
                 + ", " + Math.floor(getZ())
                 + "!");
@@ -103,7 +105,7 @@ public class Client extends ServerPlayer {
 
     public void remove(RemovalReason removalReason) {
         super.remove(removalReason);
-        SpeedrunAI.getInstance().getLogger().info(name + "was removed due to " + removalReason.toString());
+        this.LOGGER.info("removed due to " + removalReason.toString());
         if (removalReason == RemovalReason.KILLED) {
             this.scheduler.runTaskLater(SpeedrunAI.getInstance(), () -> SpeedrunAI.getInstance().getClientHandler().respawn(this), 20);
         }
@@ -111,7 +113,7 @@ public class Client extends ServerPlayer {
 
     public void die(DamageSource damageSource) {
         super.die(damageSource);
-        SpeedrunAI.getInstance().getLogger().info(name + " died due to " + damageSource.msgId);
+        this.LOGGER.info("died due to " + damageSource.msgId);
     }
 
     public boolean isLocalPlayer() {
@@ -192,10 +194,6 @@ public class Client extends ServerPlayer {
         }
     }
 
-    public void shutDown() {
-        this.scheduler.cancelTask(this.taskID);
-    }
-
     public void lookAt(double x, double y, double z) {
         this.look(new Vec3(x - this.getX(), y - this.getEyeY(), z - this.getZ()));
     }
@@ -227,15 +225,18 @@ public class Client extends ServerPlayer {
                 super.attack(entity);
                 this.swing(InteractionHand.MAIN_HAND);
                 this.waitForRecharge = this.getCurrentItemAttackStrengthDelay();
-                SpeedrunAI.getInstance().getLogger().info(name + " attacking "
-                        + entity.getName().getString()
-                        + " with " + this.getItemInHand(InteractionHand.MAIN_HAND).getDisplayName().getString());
+                this.LOGGER.info(
+                        "attacking " + entity.getName().getString()
+                        + " with " + this.getItemInHand(InteractionHand.MAIN_HAND).getDisplayName().getString()
+                );
             }
-            else SpeedrunAI.getInstance().getLogger().info(name + " couldn't attack as it cannot reach / see "
-                    + entity.getName().getString());
+            else this.LOGGER.info("couldn't attack as it cannot reach / see "
+                    + entity.getName().getString()
+            );
         }
-        else SpeedrunAI.getInstance().getLogger().info(name  + " couldn't attack as "
-                + entity.getName().getString() + " is dead");
+        else this.LOGGER.info("couldn't attack as "
+                + entity.getName().getString() + " is dead"
+        );
     }
 
     public boolean canSee(Entity entity) {
@@ -363,7 +364,7 @@ public class Client extends ServerPlayer {
                 method.invoke(boat);
                 method.setAccessible(false);
             } catch (Exception ex) {
-                SpeedrunAI.getInstance().getLogger().warning(name + " could not steer boat");
+                this.LOGGER.warning("could not steer boat");
             }
         }
 
@@ -439,8 +440,6 @@ public class Client extends ServerPlayer {
                 }
                 this.getInventory().selected = slot;
                 this.resetLastActionTime();
-            } else {
-                SpeedrunAI.getInstance().getLogger().warning(name + " tried to set an invalid carried item");
             }
         }
     }
@@ -527,6 +526,14 @@ public class Client extends ServerPlayer {
         Vec3 vec31 = vec3.add((double)f7 * d3, (double)f6 * d3, (double)f8 * d3);
         ClipContext.Fluid f = (this.getItemInHand(InteractionHand.MAIN_HAND).getItem() instanceof BucketItem || this.getItemInHand(InteractionHand.OFF_HAND).getItem() instanceof BucketItem) ? ClipContext.Fluid.SOURCE_ONLY : ClipContext.Fluid.NONE;
         return this.level.clip(new ClipContext(vec3, vec31, ClipContext.Block.OUTLINE, f, this));
+    }
+
+    public void shutDown() {
+        this.scheduler.cancelTask(this.taskID);
+    }
+
+    public java.util.logging.Logger logger() {
+        return this.LOGGER;
     }
 
     public int tickCount() {

@@ -89,10 +89,11 @@ public class MouseUtils {
         this.client.swing(InteractionHand.MAIN_HAND);
         float damage = this.client.level.getBlockState(((CraftBlock) r.getHitBlock()).getPosition()).getDestroyProgress(client, this.client.level, this.destroyPos);
         double ticksTotal = (Math.ceil(1 / damage));
-        SpeedrunAI.getInstance().getLogger().info(client.name
-                + " is destroying " + this.client.level.getBlockState(this.destroyPos).getBlock().getName().getString()
+        this.client.logger().info(
+                "destroying " + this.client.level.getBlockState(this.destroyPos).getBlock().getName().getString()
                 + " at " + this.destroyPos.getX() + " " + this.destroyPos.getY() + " " + this.destroyPos.getZ()
-                + "and has completed " + (this.digTicks > ticksTotal ? 0.0 : (ticksTotal - this.digTicks) / 20));
+                + " (" + (this.digTicks > ticksTotal ? 0.0 : (ticksTotal - this.digTicks) / 20) + ")"
+        );
         this.destroyProgress += damage;
         SoundType soundType = this.client.level.getBlockState(this.destroyPos).getSoundType();
         if (this.digTicks % 4.0F == 0.0F && soundType != null) {
@@ -101,13 +102,13 @@ public class MouseUtils {
         this.digTicks++;
         if ((this.client.gameMode.isCreative() && !this.client.level.getWorldBorder().isWithinBounds(this.destroyPos)) || this.destroyProgress >= 1.0F) {
             this.client.gameMode.destroyBlock(this.destroyPos);
-            this.stopDestroying("finished breaking");
+            this.stopDestroying("finished destroying");
         }
         this.send(new ClientboundBlockDestructionPacket(this.client.getId(), this.destroyPos, (int) (this.destroyProgress * 10.0F) - 1));
     }
 
     public void stopDestroying(String s) {
-        SpeedrunAI.getInstance().getLogger().info(client.name + " stopped destroying " + s);
+        this.client.logger().info("stopped destroying (" + s + ")");
         this.send(new ClientboundBlockDestructionPacket(this.client.getId(), this.destroyPos, -1));
         this.client.swing(InteractionHand.MAIN_HAND);
         this.digTicks = 0.0F;
@@ -137,45 +138,49 @@ public class MouseUtils {
     }
 
     public void startUsingItem() {
-        if(this.client.handsOccupied) {
-            SpeedrunAI.getInstance().getLogger().info(client.name + " can't right click because its hand is occupied");
-        } else if(this.isDestroying()) {
-            SpeedrunAI.getInstance().getLogger().info(client.name + " can't right click because its destroying a block");
-        } else for(InteractionHand hand : InteractionHand.values()) {
-            BlockHitResult b = this.client.rayTrace(-1);
-            ItemStack itemStack = this.client.getItemInHand(hand);
-            if (itemStack != null) {
-                RayTraceResult r = this.client.rayTraceBukkit(-1);
-                if (r != null && r.getHitEntity() != null) {
-                    Entity entity = ((CraftEntity) r.getHitEntity()).getHandle();
-                    InteractionResult result = null;
-                    if (entity instanceof LivingEntity) {
-                        result = itemStack.interactLivingEntity(this.client, (LivingEntity) entity, hand);
+        if (this.client.handsOccupied) {
+            this.client.logger().info("can't right click (hands occupied)");
+        }
+        else if (this.isDestroying()) {
+            this.client.logger().info("can't right click (destroying a block)");
+        }
+        else {
+            for (InteractionHand hand : InteractionHand.values()) {
+                BlockHitResult b = this.client.rayTrace(-1);
+                ItemStack itemStack = this.client.getItemInHand(hand);
+                if (itemStack != null) {
+                    RayTraceResult r = this.client.rayTraceBukkit(-1);
+                    if (r != null && r.getHitEntity() != null) {
+                        Entity entity = ((CraftEntity) r.getHitEntity()).getHandle();
+                        InteractionResult result = null;
+                        if (entity instanceof LivingEntity) {
+                            result = itemStack.interactLivingEntity(this.client, (LivingEntity) entity, hand);
+                        }
+                        if (result != null && !result.consumesAction()) {
+                            result = entity.interact(this.client, hand);
+                        }
+                        if (result != null && result.consumesAction()) {
+                            if (result.shouldSwing()) {
+                                this.client.swing(hand);
+                            }
+                            return;
+                        }
                     }
-                    if (result != null && !result.consumesAction()) {
-                        result = entity.interact(this.client, hand);
-                    }
-                    if (result != null && result.consumesAction()) {
+                    else if (b != null && !this.client.level.getBlockState(b.getBlockPos()).isAir() && !itemStack.isEmpty()) {
+                        InteractionResult result = itemStack.useOn(new UseOnContext(this.client, hand, b), hand);
                         if (result.shouldSwing()) {
                             this.client.swing(hand);
+                            return;
                         }
-                        return;
+                        if (result == InteractionResult.FAIL) {
+                            return;
+                        }
                     }
-                }
-                else if (b != null && !this.client.level.getBlockState(b.getBlockPos()).isAir() && !itemStack.isEmpty()) {
-                    InteractionResult result = itemStack.useOn(new UseOnContext(this.client, hand, b), hand);
-                    if (result.shouldSwing()) {
-                        this.client.swing(hand);
-                        return;
+                    InteractionResultHolder<ItemStack> holder = itemStack.use(this.client.level, this.client, hand);
+                    final ItemStack itemStack1 = holder.getObject();
+                    if (itemStack1 != itemStack) {
+                        this.client.setItemInHand(hand, itemStack1);
                     }
-                    if (result == InteractionResult.FAIL) {
-                        return;
-                    }
-                }
-                InteractionResultHolder<ItemStack> holder = itemStack.use(this.client.level, this.client, hand);
-                final ItemStack itemStack1 = holder.getObject();
-                if (itemStack1 != itemStack) {
-                    this.client.setItemInHand(hand, itemStack1);
                 }
             }
         }
