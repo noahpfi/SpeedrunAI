@@ -1,18 +1,19 @@
 package com.swirb.speedrunai.client;
 
 import com.swirb.speedrunai.Debug;
-import com.swirb.speedrunai.path.Node;
+import com.swirb.speedrunai.StarN;
+import com.swirb.speedrunai.utils.InventoryUtils;
 import com.swirb.speedrunai.utils.MathUtils;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.level.ClipContext;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import org.bukkit.Color;
 
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -20,249 +21,215 @@ public class SmrtThetaController {
 
     private final Client client;
     private boolean active;
+    private double targetF;
+    private BlockPos lastTarget;
 
-    private Node start;
-    private Node end;
-    private final Set<Node> open;
-    private final Set<Node> closed;
+    private final Set<StarN> open;
+    private final Set<StarN> closed;
 
-    private Node currentTargetPos;
-    private int radius = 8;
-    private double hx = 1.0D;
+    private StarN start;
+    private BlockPos end;
 
-    //TODO theta spreading more on the wrong side of a wall causing edge node being targeted problem: fix: up radius (problem still exists on larger scale)
-    //TODO works with the return + better node check (no return = ded)
+    private double dx;
+    private double radius;
 
     public SmrtThetaController(Client client) {
         this.client = client;
         this.active = false;
-
-        this.start = new Node(this.client.level, this.client.blockPosition(), new Node(this.client.level, this.client.blockPosition()));
-        this.end = new Node(this.client.level, this.client.blockPosition());
-        this.open = new HashSet<>(); //new PriorityQueue<>((o1, o2) -> o1.F() == o2.F() ? Double.compare(o1.H(), o2.H()) : Double.compare(o1.F(), o2.F()));
+        this.open = new HashSet<>();
         this.closed = new HashSet<>();
-
-        this.currentTargetPos = new Node(this.client.level, this.client.blockPosition(), Double.MAX_VALUE);
-        this.currentTargetPos.setVisible(false);
-
+        this.start = new StarN(this.client.blockPosition());
+        this.dx = 2.5D; // causes fewer nodes to be expanded, higher number will make it go through walls more often (2.5 seemed like a sweetspot)
+        this.radius = 10.D; // larger radius means more complex mazes (not necessarily, can only go to farthest in sight anyway) (default 10)
         this.open.add(this.start);
-
-
     }
 
     public void tick() {
-        Entity entity = this.client.nearest(100, 100, 100, entity1 -> entity1 instanceof Player);
-
+        Entity entity = this.client.nearest(30, 30, 30, entity1 -> entity1 instanceof Player && !(entity1 instanceof Client));
         this.releaseAll();
-
         if (!this.active || entity == null) {
             return;
         }
-
-        this.start.setBlockPos(this.client.blockPosition());
-        this.end.setBlockPos(entity.blockPosition());
-
-        if (this.client.blockPosition().equals(this.end.position()) || this.client.eyeBlockPosition().equals(this.end.position())) {
-            this.currentTargetPos.setVisible(false);
+        this.start = new StarN(this.client.blockPosition());
+        this.end = entity.blockPosition();
+        if (this.client.blockPosition().equals(this.end) || this.client.eyeBlockPosition().equals(this.end)) {
             return;
         }
 
-        if (this.currentTargetPos.visible()) {
-            //this.runForward(true);
-            this.client.input.W = true;
-            this.client.lookAt(this.currentTargetPos.position());
-            Debug.visualizeBlockPosition(this.client.level, this.currentTargetPos.position(), Color.RED, 2.0F);
-            if (this.client.blockPosition().equals(this.currentTargetPos.position()) || this.client.eyeBlockPosition().equals(this.currentTargetPos.position())) {
-                this.currentTargetPos.setVisible(false);
+        boolean newTarget = true;
+        BlockPos front = this.client.front();
+        if (
+                this.lastTarget != null
+                && this.lastTarget.getY() > this.client.getY() + 1  //TODO account for jumping
+                && ((!this.passable(front.above()) || (!this.passable(front) && (!this.passable(front.above().above()) || !this.passable(this.client.eyeBlockPosition().above()))))
+                || (this.client.blockPosition().getX() == this.lastTarget.getX() && this.client.blockPosition().getZ() == this.lastTarget.getZ()))
+                && this.client.inventoryUtils.get(item -> item instanceof BlockItem) != null
+        ) {
+            this.client.inventoryUtils.swap(this.client.inventoryUtils.get(item -> item instanceof BlockItem), InventoryUtils.Section.ITEMS, 0);
+            this.client.look(this.client.getYRot(), 90.0F);
+            this.client.input.RIGHT_CLICK = true;
+            if (!this.passable(this.client.blockPosition().below())) {
+                this.client.input.SHIFT = true;
             }
-            return;
-            //TODO remove this return so path adjusts while running
+            this.client.input.SPACE = true;
+            newTarget = false;
+        }
+        else if (!this.passable(front.above()) || (!this.passable(front) && (!this.passable(front.above().above()) || !this.passable(this.client.eyeBlockPosition().above())))) {
+            this.releaseAll();
+            front = !this.passable(front.above()) ? front.above() : front;
+            this.client.lookAt(front);
+            this.client.inventoryUtils.swap(this.client.inventoryUtils.bestToolFor(this.client.level.getBlockState(front)), InventoryUtils.Section.ITEMS, 0);
+            this.client.input.LEFT_CLICK = true;
+            newTarget = false;
         }
 
-        this.calculate();
-
-        for (Node node : this.open) {
-            Color color = !node.visible() ? Color.PURPLE : Color.GREEN;
-            Debug.visualizeBlockPosition(this.client.level, node.position(), color, 1.0F);
-        }
+        this.targetF = Double.MAX_VALUE;
+        this.calculate(newTarget);
     }
 
-    public void calculate() {
-        long stamp1 = System.currentTimeMillis();
-        while ((System.currentTimeMillis() - stamp1) <= 30 && !this.open.isEmpty()) {
-            Node c = this.low();
-
-            if (!this.lineOfSight(c.level(), c.from().position(), c.position())) {
-                c.setFrom(this.bestNearby(c));
-            }
-
-            this.open.remove(c);
-            this.closed.add(c);
-            System.out.println("current F: " + c.F() + " | " + "current open size: " + this.open.size());
-            Debug.visualizeBlockPosition(c.level(), c.position(), Color.WHITE, 0.5F);
-
-            //Debug.visualizeBlockPosition(c.level(), this.start.position(), Color.ORANGE, 5.0F);
-            //Debug.visualizeBlockPosition(c.level(), this.end.position(), Color.BLUE, 5.0F);
-
-            System.out.println("F: " + c.F() + " | targetF: " + this.currentTargetPos.F());
-            if (!c.visible() && this.nextAdjVisible(c) != null && c.F() < this.currentTargetPos.F()) {  //TODO make this check for the better target actually not mess up everything
-                System.out.println("target");
-                this.currentTargetPos = this.nextAdjVisible(c);
-                this.currentTargetPos.setG(c.G());
-                this.currentTargetPos.setH(c.H());
+    private void calculate(boolean newTarget) {
+        long stamp = System.currentTimeMillis();
+        while (System.currentTimeMillis() - stamp <= 30) {
+            StarN c = this.low();
+            if (c == null) {
+                this.client.logger().info("path failed");
                 this.open.clear();
                 this.open.add(this.start);
                 this.closed.clear();
                 return;
             }
-
-            for (Node successor : this.successors(c)) {
-                Node inOpen = this.nodeIn(successor, this.open);
-                Node inClosed = this.nodeIn(successor, this.closed);
-                successor.setG(c.from().G() + this.stepCost(c.from(), successor));
-                successor.setH(this.h(successor, this.end));
-                successor.setFrom(c.from());
-                if (inOpen != null && successor.G() < inOpen.G()) {
-                    inOpen.setG(successor.G());
-                    inOpen.setFrom(c.from());
+            if (!this.sight(c.pointer().blockPos(), c.blockPos())) {
+                StarN pointer = this.bestNearby(c);
+                pointer.setPointer(c.pointer());
+                c.setPointer(pointer);
+            }
+            this.open.remove(c);
+            this.closed.add(c);
+            Debug.visualizeBlockPosition(this.client.level, c.blockPos(), Color.WHITE, 1.0F);
+            BlockPos target = this.nextAdjVisible(c.blockPos());
+            if (c.blockPos().equals(this.end) || (this.notVisible(c.blockPos()) && target != null && c.F() < this.targetF)) {
+                target = c.blockPos().equals(this.end) ? this.end : target;
+                if (newTarget) {
+                    this.client.lookAt(target);
+                    this.client.input.W = true;
+                    this.client.input.SPRINT = true;
+                    this.client.input.SPACE = true;
+                    this.lastTarget = target;
+                    this.targetF = c.F();
                 }
-                if (inClosed != null && successor.G() < inClosed.G()) {
+                this.open.clear();
+                this.open.add(this.start);
+                this.closed.clear();
+                return;
+            }
+            for (StarN adjacent : this.adjacents(c)) {
+                StarN inOpen = this.nodeIn(adjacent, this.open);
+                StarN inClosed = this.nodeIn(adjacent, this.closed);
+                if (inOpen != null && adjacent.G() < inOpen.G()) {
+                    inOpen.setG(adjacent.G());
+                    inOpen.setPointer(adjacent.pointer());
+                }
+                if (inClosed != null && adjacent.G() < inClosed.G()) {
                     this.closed.remove(inClosed);
                 }
                 if (inOpen == null && inClosed == null) {
-                    this.open.add(successor);
+                    this.open.add(adjacent);
                 }
             }
         }
-        System.out.println("path failed");
     }
 
-    public Set<Node> successors(Node from) {
-        Set<Node> positions = new HashSet<>();
-        BlockPos start = new BlockPos(from.position().getX() - 1.0D, from.position().getY() - 1.0D, from.position().getZ() - 1.0D);
-        for (int i = start.getX(); i < (start.getX() + 3); i++) {
-            for (int j = start.getY(); j < (start.getY() + 3); j++) {
-                for (int k = start.getZ(); k < (start.getZ() + 3); k++) {
-                    BlockPos position = new BlockPos(i, j, k);
-                    Node node = new Node(from.level(), position, from);
-                    node.setVisible(MathUtils.distanceSquared(this.client.getEyePosition(), new Vec3(node.position().getX(), node.position().getY(), node.position().getZ()), false, false) < Math.pow(this.radius, 2) && this.client.canSee(node.position()) && !node.position().equals(this.end.position()));
-                    if (!position.equals(from.position()) && MathUtils.distanceSquared(this.client.getEyePosition(), new Vec3(node.position().getX(), node.position().getY(), node.position().getZ()), false, false) < Math.pow((this.radius + 1), 2) && this.isPassable(node.position())) {
-                        positions.add(node);
+    private Set<StarN> adjacents(StarN n) {
+        Set<StarN> s = new HashSet<>();
+        int x = n.blockPos().getX() - 1;
+        int y = n.blockPos().getY() - 1;
+        int z = n.blockPos().getZ() - 1;
+        for (int i = x; i < x + 3; i++) {
+            for (int j = y; j < y + 3; j++) {
+                for (int k = z; k < z + 3; k++) {
+                    BlockPos blockPos = new BlockPos(i, j, k);
+                    if (!blockPos.equals(n.blockPos()) && MathUtils.distanceSquared(this.client.eyeBlockPosition(), blockPos, false, false) < Math.pow(this.radius + 1, 2)) {
+                        s.add(new StarN(blockPos, n.pointer(), n.pointer().G() + this.cost(n.pointer().blockPos(), blockPos), this.dx * MathUtils.distanceSquared(blockPos, this.end, true, false)));
                     }
                 }
             }
         }
-        return positions;
+        return s;
     }
 
-    public Node bestNearby(Node from) {
-        double G = Double.MAX_VALUE;
-        Node best = null;
-        for (Node successor : this.successors(from)) {
-            if (from.G() + this.stepCost(from, successor) < G) {
-                G = from.G() + this.stepCost(from, successor);
-                best = successor;
+    public StarN bestNearby(StarN n) {
+        StarN best = null;
+        for (StarN adjacent : this.adjacents(n)) {
+            adjacent.setG(n.G() + this.cost(n.blockPos(), adjacent.blockPos()));
+            if (best == null || adjacent.G() < best.G()) {
+                best = adjacent;
             }
         }
-        return best;
+        return best == null ? null : new StarN(best.blockPos());
     }
 
-    public Node nextAdjVisible(Node node) {
+    public BlockPos nextAdjVisible(BlockPos blockPos) {
         for (Direction direction : Direction.values()) {
-            BlockPos blockPos = node.position().relative(direction);
-            if (this.client.canSee(blockPos) && this.isPassable(blockPos)) {
-                return new Node(node.level(), blockPos);
+            BlockPos relative = blockPos.relative(direction);
+            if (this.client.canSee(relative) && this.passable(relative)) {
+                return relative;
             }
         }
         return null;
     }
 
-    public Node nextVisible(Node node) {
-        Set<BlockPos> positions = new HashSet<>();
-        positions.add(node.position().offset(1, 0, 1));
-        positions.add(node.position().offset(1, 0, -1));
-        positions.add(node.position().offset(-1, 0, 1));
-        positions.add(node.position().offset(-1, 0, -1));
-        for (BlockPos blockPos : positions) {
-            if (this.client.canSee(blockPos)) {
-                return new Node(this.client.level, blockPos, node.from());
-            }
-        }
-        return null;
-    }
-
-    public Node lowVisible(Node from) {
-        double H = Double.MAX_VALUE;
-        Node low = from;
-        for (Direction direction : Direction.values()) {
-            Node n = new Node(from.level(), from.position().relative(direction));
-            if (this.client.canSee(from.position().relative(direction)) && MathUtils.distanceSquared(from.position(), this.client.blockPosition(), false, false) < H) {
-                low = n;
-                H = MathUtils.distanceSquared(from.position(), this.client.blockPosition(), false, false);
-            }
-        }
-        return low;
-    }
-
-    public double h(Node from, Node to) {
-        return this.hx * MathUtils.distanceSquared(from.position(), to.position(), true, false);
-    }
-
-    public double stepCost(Node from, Node to) {
+    private double cost(BlockPos from, BlockPos to) {
         double cost = 0.0D;
-        if (!to.walkable()) {
+        // bottom part of node blocked
+        if (!this.passable(to)) {
             cost += 10.0D;
         }
-        if (this.isPassable(to.position().below())) {
-            cost += 5.0D;
+        // top part of node blocked
+        if (!this.passable(to.above())) {
+            cost += 10.0D;
         }
-        /* + other variables */
-        return MathUtils.distanceSquared(from.position(), to.position(), true, false) + cost;
+        // node is floating
+        if (this.passable(to.below()) && (from.getX() != to.getX() && from.getZ() != to.getZ()) || from.getY() < to.getY()) {
+            cost += 10.0D;
+        }
+        return MathUtils.distanceSquared(from, to, true, false) + cost;
     }
 
-    private Node low() {
-        double F = Double.MAX_VALUE;
-        Node low = null;
-        for (Node node : this.open) {
-            if (node.F() < F) {
-                F = node.F();
-                low = node;
-            }
-            else if (node.F() == F && low != null) {
-                if (node.H() < low.H()) {
-                    low = node;
-                }
+    private StarN low() {
+        StarN low = null;
+        for (StarN n : this.open) {
+            if (low == null || n.F() < low.F() || (n.F() == low.F() && n.H() < low.H())) {
+                low = n;
             }
         }
         return low;
     }
 
-    public Node nodeIn(Node node, Collection<Node> nodes) {
-        for (Node node1 : nodes) {
-            if (node1.equals(node)) {
-                return node1;
+    private StarN nodeIn(StarN n, Set<StarN> s) {
+        for (StarN n1 : s) {
+            if (n1.equals(n)) {
+                return n1;
             }
         }
         return null;
     }
 
-    public boolean lineOfSight(Level level, BlockPos from, BlockPos to) {
+    private boolean notVisible(BlockPos blockPos) {
+        double dist = MathUtils.distanceSquared(this.client.eyeBlockPosition(), blockPos, false, false);
+        return dist >= this.radius * this.radius || (dist < this.radius * this.radius && !this.client.canSee(blockPos)) && !blockPos.equals(this.end);
+    }
+
+    private boolean sight(BlockPos from, BlockPos to) {
         if (from == null || to == null) {
             return false;
         }
         Vec3 vec3 = Vec3.atCenterOf(from);
         Vec3 vec31 = Vec3.atCenterOf(to);
-        return level.clip(new ClipContext(vec3, vec31, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, null)).getBlockPos().equals(to);
+        return this.client.level.clip(new ClipContext(vec3, vec31, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, null)).getBlockPos().equals(to);
     }
 
-    private boolean isPassable(BlockPos position) {
-        return this.client.level.getBlockState(position).getCollisionShape(this.client.level, position).isEmpty();
-    }
-
-    private void runForward(boolean space) {
-        this.client.input.SPRINT = true;
-        this.client.input.W = true;
-        if (space) this.client.input.SPACE = true;
+    private boolean passable(BlockPos blockPos) {
+        return this.client.level.getBlockState(blockPos).getCollisionShape(this.client.level, blockPos).isEmpty();
     }
 
     private void releaseAll() {

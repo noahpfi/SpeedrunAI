@@ -97,7 +97,7 @@ public class MouseUtils {
         this.destroyProgress += damage;
         SoundType soundType = this.client.level.getBlockState(this.destroyPos).getSoundType();
         if (this.digTicks % 4.0F == 0.0F && soundType != null) {
-            this.client.level.playSound(null, this.destroyPos.getX(), this.destroyPos.getY(), this.destroyPos.getZ(), this.client.level.getBlockState(this.destroyPos).getSoundType().getBreakSound(), SoundSource.BLOCKS, soundType.getVolume(), soundType.getPitch());
+            this.client.level.playSound(null, this.destroyPos.getX(), this.destroyPos.getY(), this.destroyPos.getZ(), this.client.level.getBlockState(this.destroyPos).getSoundType().getBreakSound(), SoundSource.BLOCKS, soundType.getVolume() / 4.0F, soundType.getPitch());
         }
         this.digTicks++;
         if ((this.client.gameMode.isCreative() && !this.client.level.getWorldBorder().isWithinBounds(this.destroyPos)) || this.destroyProgress >= 1.0F) {

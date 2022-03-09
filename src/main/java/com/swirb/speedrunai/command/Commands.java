@@ -1,9 +1,7 @@
 package com.swirb.speedrunai.command;
 
-import com.swirb.speedrunai.Theta;
 import com.swirb.speedrunai.client.Client;
 import com.swirb.speedrunai.client.ClientHandler;
-import com.swirb.speedrunai.path.TestPath;
 import com.swirb.speedrunai.path.ThetaStar;
 import com.swirb.speedrunai.utils.ChatUtils;
 import net.minecraft.core.BlockPos;
@@ -138,13 +136,6 @@ public class Commands implements CommandExecutor {
                 }
                 else if (args[0].equalsIgnoreCase("set")) {
                     this.blockPos = ((CraftPlayer) sender).getHandle().blockPosition();
-                }
-                else if (args[0].equalsIgnoreCase("test")) {
-                    TestPath testPath = new TestPath(((CraftPlayer) sender).getHandle().level, this.blockPos, ((CraftPlayer) sender).getHandle().blockPosition());
-                    testPath.calculate();
-                }
-                else if (args[0].equalsIgnoreCase("t")) {
-                    new Theta(((CraftPlayer) sender).getHandle());
                 }
             }
         }
