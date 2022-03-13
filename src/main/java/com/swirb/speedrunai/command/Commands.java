@@ -1,5 +1,6 @@
 package com.swirb.speedrunai.command;
 
+import com.swirb.speedrunai.Theta;
 import com.swirb.speedrunai.client.Client;
 import com.swirb.speedrunai.client.ClientHandler;
 import com.swirb.speedrunai.path.ThetaStar;
@@ -13,7 +14,7 @@ import net.minecraft.world.phys.Vec3;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
-import org.bukkit.craftbukkit.v1_18_R1.entity.CraftPlayer;
+import org.bukkit.craftbukkit.v1_18_R2.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 
@@ -136,6 +137,10 @@ public class Commands implements CommandExecutor {
                 }
                 else if (args[0].equalsIgnoreCase("set")) {
                     this.blockPos = ((CraftPlayer) sender).getHandle().blockPosition();
+                }
+                else if (args[0].equalsIgnoreCase("t")) {
+                    Theta theta = new Theta(((CraftPlayer) sender).getHandle().level, this.blockPos, ((CraftPlayer) sender).getHandle().blockPosition());
+                    theta.calculate();
                 }
             }
         }

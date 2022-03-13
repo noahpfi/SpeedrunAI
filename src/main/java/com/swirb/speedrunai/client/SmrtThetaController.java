@@ -9,7 +9,6 @@ import net.minecraft.core.Direction;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.Vec3;
 import org.bukkit.Color;
@@ -45,7 +44,7 @@ public class SmrtThetaController {
     }
 
     public void tick() {
-        Entity entity = this.client.nearest(30, 30, 30, entity1 -> entity1 instanceof Player && !(entity1 instanceof Client));
+        Entity entity = this.client.nearest(100, 100, 100, entity1 -> entity1 instanceof Player && !(entity1 instanceof Client));
         this.releaseAll();
         if (!this.active || entity == null) {
             return;
@@ -82,7 +81,6 @@ public class SmrtThetaController {
             this.client.input.LEFT_CLICK = true;
             newTarget = false;
         }
-
         this.targetF = Double.MAX_VALUE;
         this.calculate(newTarget);
     }
@@ -110,6 +108,7 @@ public class SmrtThetaController {
             if (c.blockPos().equals(this.end) || (this.notVisible(c.blockPos()) && target != null && c.F() < this.targetF)) {
                 target = c.blockPos().equals(this.end) ? this.end : target;
                 if (newTarget) {
+                    Debug.visualizeBlockPosition(this.client.level, c.blockPos(), Color.RED, 2.0F);
                     this.client.lookAt(target);
                     this.client.input.W = true;
                     this.client.input.SPRINT = true;

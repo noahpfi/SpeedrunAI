@@ -46,4 +46,17 @@ public class Debug {
             }
         }.runTaskTimer(SpeedrunAI.getInstance(), 0, 5);
     }
+
+    public static void visualizePathN(Level level, PathN path, Color color, float size, long time) {
+        final int[] i = {0};
+        new BukkitRunnable() {
+            public void run() {
+                i[0]++;
+                for (StarN n : path.nodes()) {
+                    Debug.visualizeBlockPosition(level, n.blockPos(), color, size);
+                }
+                if (i[0] == time / 5) this.cancel();
+            }
+        }.runTaskTimer(SpeedrunAI.getInstance(), 0, 5);
+    }
 }

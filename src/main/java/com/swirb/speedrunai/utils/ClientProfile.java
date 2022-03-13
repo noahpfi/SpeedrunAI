@@ -7,7 +7,7 @@ import com.mojang.authlib.properties.Property;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import org.bukkit.Bukkit;
-import org.bukkit.craftbukkit.v1_18_R1.CraftServer;
+import org.bukkit.craftbukkit.v1_18_R2.CraftServer;
 
 import java.io.IOException;
 import java.io.InputStreamReader;

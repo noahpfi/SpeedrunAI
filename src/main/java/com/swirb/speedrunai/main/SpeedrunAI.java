@@ -3,7 +3,6 @@ package com.swirb.speedrunai.main;
 import com.swirb.speedrunai.client.ClientHandler;
 import com.swirb.speedrunai.command.Commands;
 import com.swirb.speedrunai.command.GameMode;
-import org.bukkit.craftbukkit.v1_18_R1.CraftServer;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class SpeedrunAI extends JavaPlugin {

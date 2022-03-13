@@ -1,236 +1,189 @@
 package com.swirb.speedrunai;
 
 import com.swirb.speedrunai.main.SpeedrunAI;
-import com.swirb.speedrunai.path.Node;
 import com.swirb.speedrunai.utils.MathUtils;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.Vec3;
-import org.bukkit.Bukkit;
 import org.bukkit.Color;
+import org.bukkit.scheduler.BukkitRunnable;
 
-import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
 public class Theta {
 
-    private final ServerPlayer client;
-    private boolean active;
+    private final Level level;
 
-    private Node start;
-    private Node end;
-    private final Set<Node> open;
-    private final Set<Node> closed;
-    private Set<BlockPos> view;
+    private final Set<StarN> open;
+    private final Set<StarN> closed;
 
-    private BlockPos currentTargetPos;
-    private int radius = 8;
-    private double hx = 1.0D;
+    private final StarN start;
+    private final BlockPos end;
 
-    public Theta(ServerPlayer client) {
-        this.client = client;
-        this.active = false;
+    private final PathN path;
+    private StarN recreationN;
 
-        this.start = new Node(this.client.level, this.client.blockPosition(), new Node(this.client.level, this.client.blockPosition()));
-        this.open = new HashSet<>(); //new PriorityQueue<>((o1, o2) -> o1.F() == o2.F() ? Double.compare(o1.H(), o2.H()) : Double.compare(o1.F(), o2.F()));
+    private double dx;
+    private double radius;
+
+    public Theta(Level level, BlockPos start, BlockPos end) {
+        this.level = level;
+        this.open = new HashSet<>();
         this.closed = new HashSet<>();
-
-        this.view = new HashSet<>();
-
+        this.start = new StarN(start);
+        this.end = end;
+        this.path = new PathN();
+        this.dx = 2.5D; // causes fewer nodes to be expanded, higher number will make it go through walls more often (2.5 seemed like a sweetspot)
+        this.radius = 10.D;
         this.open.add(this.start);
-        Bukkit.getScheduler().scheduleSyncRepeatingTask(SpeedrunAI.getInstance(), this::tick, 0, 0);
     }
 
-    public void tick() {
-        this.start.setBlockPos(this.client.blockPosition());
-        BlockPos blockPos = this.client.blockPosition().relative(this.client.getDirection(), 15);
-        int height = this.client.getLevel().getChunk(blockPos.getX() >> 4, blockPos.getZ() >> 4).getHeight(Heightmap.Types.MOTION_BLOCKING, blockPos.getX(), blockPos.getZ());
-        this.end = new Node(this.client.level, this.client.blockPosition().relative(this.client.getDirection(), 15).atY(height));
-
-        if (this.currentTargetPos != null) {
-            Debug.visualizeBlockPosition(this.client.level, this.currentTargetPos, Color.RED, 2.0F);
-            if (this.client.blockPosition().equals(this.currentTargetPos)) {
-                this.currentTargetPos = null;
+    public void calculate() {
+        long time = System.currentTimeMillis();
+        new BukkitRunnable() {
+            public void run() {
+                long stamp = System.currentTimeMillis();
+                while (System.currentTimeMillis() - stamp <= 30) {
+                    StarN c = Theta.this.low();
+                    if (c == null) {
+                        SpeedrunAI.getInstance().getLogger().info("path failed (" + ((System.currentTimeMillis() - time) / 1000.0D) + ")");
+                        this.cancel();
+                        break;
+                    }
+                    if (!Theta.this.sight(c.pointer().blockPos(), c.blockPos())) {
+                        StarN pointer = Theta.this.bestNearby(c);
+                        pointer.setPointer(c.pointer());
+                        c.setPointer(pointer);
+                    }
+                    Theta.this.open.remove(c);
+                    Theta.this.closed.add(c);
+                    Debug.visualizeBlockPosition(Theta.this.level, c.blockPos(), Color.WHITE, 1.0F);
+                    if (c.blockPos().equals(Theta.this.end)) {
+                        SpeedrunAI.getInstance().getLogger().info("path found! (" + ((System.currentTimeMillis() - time) / 1000.0D) + ")");
+                        Theta.this.recreate(c);
+                        this.cancel();
+                        break;
+                    }
+                    for (StarN adjacent : Theta.this.adjacents(c)) {
+                        StarN inOpen = Theta.this.nodeIn(adjacent, Theta.this.open);
+                        StarN inClosed = Theta.this.nodeIn(adjacent, Theta.this.closed);
+                        if (inOpen != null && adjacent.G() < inOpen.G()) {
+                            inOpen.setG(adjacent.G());
+                            inOpen.setPointer(adjacent.pointer());
+                        }
+                        if (inClosed != null && adjacent.G() < inClosed.G()) {
+                            Theta.this.closed.remove(inClosed);
+                        }
+                        if (inOpen == null && inClosed == null) {
+                            Theta.this.open.add(adjacent);
+                        }
+                    }
+                }
             }
-        }
-
-        if (this.calculate()) {
-            this.open.clear();
-            this.open.add(this.start);
-            this.closed.clear();
-        }
+        }.runTaskTimer(SpeedrunAI.getInstance(), 0, 0);
     }
 
-    public boolean calculate() {
-        long stamp1 = System.currentTimeMillis();
-        while ((System.currentTimeMillis() - stamp1) <= 30 && !this.open.isEmpty()) {
-            Node c = this.low();
-
-            if (!this.lineOfSight(c.level(), c.from().position(), c.position())) {
-                c.setFrom(this.bestNearby(c));
-            }
-
-            this.open.remove(c);
-            this.closed.add(c);
-            System.out.println("current F: " + c.F() + " | " + "current open size: " + this.open.size());
-            Debug.visualizeBlockPosition(c.level(), c.position(), Color.WHITE, 1.0F);
-
-            c.setVisible(MathUtils.distanceSquared(this.client.position(), new Vec3(c.position().getX(), c.position().getY(), c.position().getZ()), false, false) < Math.pow(this.radius, 2) && this.canSee(c.position()) && this.isPassable(c.position()));
-            if (!c.visible() || c.equals(this.end)) {
-                this.currentTargetPos = c.position();
-                return true;
-            }
-
-            for (Node successor : this.successors(c)) {
-                Node inOpen = this.nodeIn(successor, this.open);
-                Node inClosed = this.nodeIn(successor, this.closed);
-                successor.setG(c.from().G() + this.stepCost(c.from(), successor));
-                successor.setH(this.h(successor, this.end));
-                successor.setFrom(c.from());
-                if (inOpen != null && successor.G() < inOpen.G()) {
-                    inOpen.setG(successor.G());
-                    inOpen.setFrom(c.from());
-                }
-                if (inClosed != null && successor.G() < inClosed.G()) {
-                    this.closed.remove(inClosed);
-                }
-                if (inOpen == null && inClosed == null) {
-                    this.open.add(successor);
+    private void recreate(StarN n) {
+        this.recreationN = n;
+        long time = System.currentTimeMillis();
+        new BukkitRunnable() {
+            public void run() {
+                long stamp = System.currentTimeMillis();
+                while (System.currentTimeMillis() - stamp <= 30) {
+                    if (Theta.this.recreationN.pointer() != null) {
+                        Theta.this.path.add(Theta.this.recreationN);
+                        Theta.this.recreationN = Theta.this.recreationN.pointer();
+                    }
+                    else {
+                        SpeedrunAI.getInstance().getLogger().info("path recreated (" + ((System.currentTimeMillis() - time) / 1000.0D) + ")");
+                        Collections.reverse(Theta.this.path.nodes());
+                        Debug.visualizePathN(Theta.this.level, Theta.this.path, Color.RED, 2.0F, 100);
+                        this.cancel();
+                        break;
+                    }
                 }
             }
-        }
-        System.out.println("path failed");
-        return false;
+        }.runTaskTimer(SpeedrunAI.getInstance(), 0, 0);
     }
 
-    public Set<Node> successors(Node from) {
-        Set<Node> positions = new HashSet<>();
-        BlockPos start = new BlockPos(from.position().getX() - 1.0D, from.position().getY() - 1.0D, from.position().getZ() - 1.0D);
-        for (int i = start.getX(); i < (start.getX() + 3); i++) {
-            for (int j = start.getY(); j < (start.getY() + 3); j++) {
-                for (int k = start.getZ(); k < (start.getZ() + 3); k++) {
-                    BlockPos position = new BlockPos(i, j, k);
-                    Node node = new Node(from.level(), position, from);
-                    if (!position.equals(from.position())) {
-                        positions.add(node);
+    private Set<StarN> adjacents(StarN n) {
+        Set<StarN> s = new HashSet<>();
+        int x = n.blockPos().getX() - 1;
+        int y = n.blockPos().getY() - 1;
+        int z = n.blockPos().getZ() - 1;
+        for (int i = x; i < x + 3; i++) {
+            for (int j = y; j < y + 3; j++) {
+                for (int k = z; k < z + 3; k++) {
+                    BlockPos blockPos = new BlockPos(i, j, k);
+                    if (!blockPos.equals(n.blockPos()) && MathUtils.distanceSquared(this.start.blockPos(), blockPos, false, false) < Math.pow(this.radius + 1, 2)) {
+                        s.add(new StarN(blockPos, n.pointer(), n.pointer().G() + this.cost(n.pointer().blockPos(), blockPos), this.dx * MathUtils.distanceSquared(blockPos, this.end, true, false)));
                     }
                 }
             }
         }
-        return positions;
+        return s;
     }
 
-    public Node bestNearby(Node from) {
-        double G = Double.MAX_VALUE;
-        Node best = null;
-        for (Node successor : this.successors(from)) {
-            if (from.G() + this.stepCost(from, successor) < G) {
-                G = from.G() + this.stepCost(from, successor);
-                best = successor;
+    public StarN bestNearby(StarN n) {
+        StarN best = null;
+        for (StarN adjacent : this.adjacents(n)) {
+            adjacent.setG(n.G() + this.cost(n.blockPos(), adjacent.blockPos()));
+            if (best == null || adjacent.G() < best.G()) {
+                best = adjacent;
             }
         }
-        return best;
+        return best == null ? null : new StarN(best.blockPos());
     }
 
-    public Node nextAdjVisible(Node node) {
-        for (Direction direction : Direction.values()) {
-            if (this.canSee(node.position().relative(direction))) {
-                return new Node(node.level(), node.position().relative(direction));
-            }
-        }
-        return node;
-    }
-
-    public Node nextVisible(Node node) {
-        Set<BlockPos> positions = new HashSet<>();
-        positions.add(node.position().offset(1, 0, 1));
-        positions.add(node.position().offset(1, 0, -1));
-        positions.add(node.position().offset(-1, 0, 1));
-        positions.add(node.position().offset(-1, 0, -1));
-        for (BlockPos blockPos : positions) {
-            if (this.canSee(blockPos)) {
-                return new Node(this.client.level, blockPos, node.from());
-            }
-        }
-        return null;
-    }
-
-    public Node lowVisible(Node from) {
-        double H = Double.MAX_VALUE;
-        Node low = from;
-        for (Direction direction : Direction.values()) {
-            Node n = new Node(from.level(), from.position().relative(direction));
-            if (this.canSee(from.position().relative(direction)) && MathUtils.distanceSquared(from.position(), this.client.blockPosition(), false, false) < H) {
-                low = n;
-                H = MathUtils.distanceSquared(from.position(), this.client.blockPosition(), false, false);
-            }
-        }
-        return low;
-    }
-
-    public double h(Node from, Node to) {
-        return this.hx * MathUtils.distanceSquared(from.position(), to.position(), true, false);
-    }
-
-    public double stepCost(Node from, Node to) {
+    private double cost(BlockPos from, BlockPos to) {
         double cost = 0.0D;
-        if (!to.walkable()) {
-            cost =+ 10.0D;
+        // bottom part of node blocked
+        if (!this.passable(to)) {
+            cost += 10.0D;
         }
-        /* + other variables */
-        return MathUtils.distanceSquared(from.position(), to.position(), true, false) + cost;
+        // top part of node blocked
+        if (!this.passable(to.above())) {
+            cost += 10.0D;
+        }
+        // node is floating
+        if (this.passable(to.below())/* && (from.getX() != to.getX() && from.getZ() != to.getZ()) || from.getY() < to.getY()*/) {
+            cost += 9999999.0D;
+        }
+        return MathUtils.distanceSquared(from, to, true, false) + cost;
     }
 
-    private Node low() {
-        double F = Double.MAX_VALUE;
-        Node low = null;
-        for (Node node : this.open) {
-            if (node.F() < F) {
-                F = node.F();
-                low = node;
-            }
-            else if (node.F() == F && low != null) {
-                if (node.H() < low.H()) {
-                    low = node;
-                }
+    private StarN low() {
+        StarN low = null;
+        for (StarN n : this.open) {
+            if (low == null || n.F() < low.F() || (n.F() == low.F() && n.H() < low.H())) {
+                low = n;
             }
         }
         return low;
     }
 
-    public Node nodeIn(Node node, Collection<Node> nodes) {
-        for (Node node1 : nodes) {
-            if (node1.equals(node)) {
-                return node1;
+    private StarN nodeIn(StarN n, Set<StarN> s) {
+        for (StarN n1 : s) {
+            if (n1.equals(n)) {
+                return n1;
             }
         }
         return null;
     }
 
-    public boolean lineOfSight(Level level, BlockPos from, BlockPos to) {
+    private boolean sight(BlockPos from, BlockPos to) {
         if (from == null || to == null) {
             return false;
         }
         Vec3 vec3 = Vec3.atCenterOf(from);
         Vec3 vec31 = Vec3.atCenterOf(to);
-        return level.clip(new ClipContext(vec3, vec31, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, null)).getBlockPos().equals(to);
+        return this.level.clip(new ClipContext(vec3, vec31, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, null)).getBlockPos().equals(to);
     }
 
-    private boolean isPassable(BlockPos position) {
-        return this.client.level.getBlockState(position).getCollisionShape(this.client.level, position).isEmpty();
-    }
-
-    public boolean canSee(BlockPos blockPos) {
-        if (blockPos == null) {
-            return false;
-        }
-        Vec3 vec3 = new Vec3(this.client.getX(), this.client.getEyeY(), this.client.getZ());
-        Vec3 vec31 = new Vec3(blockPos.getX() + 0.5D, blockPos.getY() + 0.5D, blockPos.getZ() + 0.5D);
-        return this.client.level.clip(new ClipContext(vec3, vec31, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, null)).getBlockPos().equals(blockPos);
+    private boolean passable(BlockPos blockPos) {
+        return this.level.getBlockState(blockPos).getCollisionShape(this.level, blockPos).isEmpty();
     }
 }
