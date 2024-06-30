@@ -4,7 +4,9 @@ This is the public archive of the SpeedrunAI / PvPBots / Statues plugin for MC s
 
 **SpeedrunAI aka PvPBots is a server plugin for adding fake players to Minecraft.**
 
-![](showcase.mp4)
+<video width="320" height="180" controls>
+  <source src="showcase.mp4" type="video/mp4">
+</video>
 
 Features include:
 - Spawn as many as you want
