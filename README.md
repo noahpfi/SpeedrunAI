@@ -31,6 +31,8 @@ No it hasn't. It is sitting through the end credits lol.
 
 ## Fyi
 
+This is uploaded as is, meaning this is mostly uncommented, and may contain unused files, etc. Did not clean it up.
+
 If I remember correctly, shortly before discontinuation **I updated the plugin to mc version 1.18 and a few minor things broke (i think block placing).** The plugin was originally developed for version 1.16.1.
 
 The showcase video may be cool, but i lost the [Controller.java] (renamed to [PvP.java](src/main/java/com/swirb/pvpbots/client/PvP.java)) code which means this functionality is lost until someone recodes it.
