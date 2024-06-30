@@ -1,0 +1,11 @@
+name: Statues
+version: '${project.version}'
+main: com.swirb.statues.Statues
+api-version: 1.18
+authors: [ Swirb ]
+description: bots to put in your world i guess they will be brainafk
+website: https://www.youtube.com/channel/UCqdWbVRctQBMrZQUjuvYjug
+
+commands:
+  statues:
+    description: statue stuff
