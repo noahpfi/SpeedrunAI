@@ -1,13 +1,11 @@
-name: SpeedrunAI
+name: PvPBots
 version: '${project.version}'
-main: com.swirb.speedrunai.main.SpeedrunAI
+main: com.swirb.pvpbots.PvPBots
 api-version: 1.18
 authors: [ Swirb ]
-description: bot that are smart
+description: bots that are smart and beat you in pvp
 website: https://www.youtube.com/channel/UCqdWbVRctQBMrZQUjuvYjug
 
 commands:
   bots:
-    description: client commands
-  gamemode:
-    description: changes the gamemode
+    description: bot stuff

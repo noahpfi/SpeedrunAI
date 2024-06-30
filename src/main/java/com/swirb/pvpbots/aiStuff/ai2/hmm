@@ -1,0 +1,3 @@
+when adding a connection, check for recursion
+every node can only have one connection leading away from it
+every time a new Gene is added, node.gene has to be updated
